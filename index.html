@@ -3,11 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TLAPS Commercial Food Service Supplies</title>
+<title>TLAPS — Commercial Grade Food Service Supplies</title>
+<meta name="description" content="Trusted disposable food service supplies for restaurants, caterers, and food service professionals. Bulk pricing, commercial quality.">
+<link rel="canonical" href="https://aifenceguy.github.io/tlaps-website/">
+
+<!-- Open Graph / social sharing -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="TLAPS — Commercial Grade Food Service Supplies">
+<meta property="og:description" content="Trusted disposable food service supplies for restaurants, caterers, and food service professionals. Bulk pricing, commercial quality.">
+<meta property="og:url" content="https://aifenceguy.github.io/tlaps-website/">
+<meta property="og:site_name" content="TLAPS Food Service Supply">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TLAPS — Commercial Grade Food Service Supplies">
+<meta name="twitter:description" content="Trusted disposable food service supplies for restaurants, caterers, and food service professionals. Bulk pricing, commercial quality.">
+
+<!-- Structured data: Organization -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "TLAPS Food Service Supply",
+  "legalName": "I3 Enterprise Inc.",
+  "url": "https://aifenceguy.github.io/tlaps-website/",
+  "foundingDate": "2015",
+  "description": "Commercial grade disposable food service supplies for restaurants, caterers, food trucks, and institutional buyers.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Brea",
+    "addressRegion": "CA",
+    "addressCountry": "US"
+  },
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "wholesale sales",
+    "email": "info@i3enterpriseinc.com",
+    "areaServed": "US"
+  },
+  "sameAs": [
+    "https://www.amazon.com/s?k=TLAPS"
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
 :root{
   --green-deep:#1b3a1e;
   --green-mid:#2a5c2e;
@@ -25,11 +67,11 @@ body{font-family:'Outfit',sans-serif;background:var(--cream);color:var(--charcoa
 
 /* UTILITY BAR */
 .util-bar{background:var(--green-deep);color:#c8d8c9;font-size:12px;letter-spacing:0.08em;padding:7px 0}
-.util-bar .inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center}
+.util-bar .inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .util-bar a{color:#c8d8c9;text-decoration:none;transition:color .2s}
 .util-bar a:hover{color:#fff}
 .util-links{display:flex;gap:24px}
-.util-bar .cert-strip{display:flex;gap:16px;align-items:center}
+.util-bar .cert-strip{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .cert-badge{display:flex;align-items:center;gap:5px;font-size:11px;letter-spacing:0.06em}
 .cert-dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
 
@@ -48,13 +90,16 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 .header-search button{position:absolute;right:0;top:0;height:100%;width:42px;background:var(--green-deep);border:none;cursor:pointer;border-radius:0 3px 3px 0;display:flex;align-items:center;justify-content:center}
 .header-search button svg{width:16px;height:16px;fill:#fff}
 .header-actions{display:flex;align-items:center;gap:20px;margin-left:auto}
-.btn-inquiry{background:var(--green-deep);color:#fff;padding:9px 20px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.04em;border:none;cursor:pointer;border-radius:2px;text-decoration:none;transition:background .2s}
+.btn-inquiry{background:var(--green-deep);color:#fff;padding:9px 20px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.04em;border:none;cursor:pointer;border-radius:2px;text-decoration:none;transition:background .2s;white-space:nowrap}
 .btn-inquiry:hover{background:var(--green-mid)}
+.menu-toggle{display:none;background:transparent;border:none;cursor:pointer;padding:8px;margin-left:auto}
+.menu-toggle svg{width:26px;height:26px;fill:var(--green-deep)}
 
 /* CATEGORY NAV */
 .cat-nav{background:var(--green-deep);border-bottom:1px solid rgba(255,255,255,0.1)}
-.cat-nav .inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;gap:0}
-.cat-nav a{color:rgba(255,255,255,0.82);text-decoration:none;font-size:12.5px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:13px 18px;display:block;transition:all .2s;border-bottom:2px solid transparent}
+.cat-nav .inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+.cat-nav .inner::-webkit-scrollbar{display:none}
+.cat-nav a{color:rgba(255,255,255,0.82);text-decoration:none;font-size:12.5px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:13px 18px;display:block;transition:all .2s;border-bottom:2px solid transparent;white-space:nowrap}
 .cat-nav a:hover,.cat-nav a.active{color:#fff;border-bottom-color:var(--gold)}
 
 /* HERO */
@@ -66,9 +111,9 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 .hero h1 em{color:var(--gold);font-style:normal}
 .hero-sub{color:rgba(255,255,255,0.68);font-size:16px;line-height:1.7;margin-bottom:32px;max-width:420px}
 .hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
-.btn-primary{background:var(--gold);color:var(--charcoal);padding:13px 28px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.04em;border:none;cursor:pointer;border-radius:2px;text-decoration:none;transition:all .2s}
+.btn-primary{background:var(--gold);color:var(--charcoal);padding:13px 28px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.04em;border:none;cursor:pointer;border-radius:2px;text-decoration:none;transition:all .2s;display:inline-block}
 .btn-primary:hover{background:#c9a66a}
-.btn-outline{background:transparent;color:#fff;padding:13px 28px;font-size:14px;font-weight:500;letter-spacing:0.04em;border:1.5px solid rgba(255,255,255,0.4);cursor:pointer;border-radius:2px;text-decoration:none;transition:all .2s}
+.btn-outline{background:transparent;color:#fff;padding:13px 28px;font-size:14px;font-weight:500;letter-spacing:0.04em;border:1.5px solid rgba(255,255,255,0.4);cursor:pointer;border-radius:2px;text-decoration:none;transition:all .2s;display:inline-block}
 .btn-outline:hover{border-color:#fff;background:rgba(255,255,255,0.05)}
 .hero-visual{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .hero-card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:20px;text-align:center;transition:all .2s}
@@ -79,7 +124,7 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 
 /* TRUST STRIP */
 .trust-strip{background:#fff;border-bottom:1px solid var(--border)}
-.trust-strip .inner{max-width:1280px;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-around;align-items:center;gap:20px}
+.trust-strip .inner{max-width:1280px;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-around;align-items:center;gap:20px;flex-wrap:wrap}
 .trust-item{display:flex;align-items:center;gap:10px}
 .trust-icon{width:34px;height:34px;background:var(--green-pale);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .trust-icon svg{width:18px;height:18px;fill:var(--green-mid)}
@@ -89,24 +134,26 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 
 /* CATEGORY GRID */
 .section{max-width:1280px;margin:0 auto;padding:56px 32px}
-.section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:32px}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:32px;gap:16px;flex-wrap:wrap}
 .section-title{font-family:'Playfair Display',serif;font-size:30px;font-weight:600;color:var(--charcoal)}
 .section-title span{color:var(--green-mid)}
 .section-link{font-size:13px;color:var(--green-mid);text-decoration:none;font-weight:500;letter-spacing:0.04em;border-bottom:1px solid transparent;transition:border-color .2s}
 .section-link:hover{border-bottom-color:var(--green-mid)}
-.cat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
-.cat-card{background:#fff;border:1px solid var(--border);border-radius:4px;padding:24px 16px 20px;text-align:center;text-decoration:none;color:var(--charcoal);transition:all .25s;cursor:pointer}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.cat-card{background:#fff;border:1px solid var(--border);border-radius:4px;padding:24px 16px 20px;text-align:center;text-decoration:none;color:var(--charcoal);transition:all .25s;cursor:pointer;display:flex;flex-direction:column;align-items:center}
 .cat-card:hover{border-color:var(--green-mid);box-shadow:0 4px 20px rgba(27,58,30,0.08);transform:translateY(-2px)}
 .cat-card:hover .cat-card-icon{background:var(--green-pale)}
 .cat-card-icon{width:60px;height:60px;margin:0 auto 14px;background:#f5f5f0;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s}
-.cat-card-icon svg{width:30px;height:30px;fill:var(--green-mid)}
+.cat-card-icon svg{width:30px;height:30px;fill:none;stroke:var(--green-mid);stroke-width:2}
 .cat-card-name{font-size:13px;font-weight:600;letter-spacing:0.02em;margin-bottom:4px}
-.cat-card-count{font-size:11px;color:var(--muted)}
+.cat-card-count{font-size:11px;color:var(--muted);margin-bottom:10px}
+.cat-card-link{margin-top:auto;font-size:11px;color:var(--green-mid);font-weight:500;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid transparent;transition:border-color .2s}
+.cat-card:hover .cat-card-link{border-bottom-color:var(--green-mid)}
 
 /* PRODUCTS */
 .products-bg{background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
-.product-card{background:#fff;padding:28px 24px;cursor:pointer;transition:background .2s}
+.product-card{background:#fff;padding:28px 24px;transition:background .2s}
 .product-card:hover{background:var(--cream)}
 .product-img{height:160px;background:var(--cream);border-radius:3px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;position:relative;overflow:hidden}
 .product-img svg{width:90px;height:90px;opacity:0.7}
@@ -114,10 +161,10 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 .product-cat{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--green-mid);font-weight:500;margin-bottom:6px}
 .product-name{font-family:'Playfair Display',serif;font-size:17px;font-weight:500;line-height:1.3;margin-bottom:8px;color:var(--charcoal)}
 .product-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px}
-.product-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:14px}
+.product-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:14px;gap:10px;flex-wrap:wrap}
 .product-price{font-size:14px;font-weight:600;color:var(--charcoal)}
 .product-price span{font-size:11px;font-weight:400;color:var(--muted)}
-.btn-small{font-size:12px;font-weight:500;color:var(--green-mid);background:transparent;border:1.5px solid var(--green-mid);padding:6px 14px;border-radius:2px;cursor:pointer;letter-spacing:0.04em;transition:all .2s}
+.btn-small{font-size:12px;font-weight:500;color:var(--green-mid);background:transparent;border:1.5px solid var(--green-mid);padding:6px 14px;border-radius:2px;cursor:pointer;letter-spacing:0.04em;transition:all .2s;text-decoration:none;display:inline-block}
 .btn-small:hover{background:var(--green-deep);color:#fff;border-color:var(--green-deep)}
 
 /* WHY TLAPS */
@@ -131,25 +178,6 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 .why-num{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:10px}
 .why-label{font-size:14px;font-weight:600;color:#fff;margin-bottom:6px}
 .why-desc{font-size:13px;color:rgba(255,255,255,0.55);line-height:1.65}
-
-/* INQUIRY FORM */
-.inquiry-section{background:var(--cream);padding:64px 0;border-top:1px solid var(--border)}
-.inquiry-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
-.inquiry-left .eyebrow{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--green-mid);margin-bottom:16px}
-.inquiry-left h2{font-family:'Playfair Display',serif;font-size:36px;font-weight:600;color:var(--charcoal);line-height:1.2;margin-bottom:16px}
-.inquiry-left p{color:var(--muted);font-size:15px;line-height:1.75;margin-bottom:28px}
-.inquiry-bullets{list-style:none;display:flex;flex-direction:column;gap:10px}
-.inquiry-bullets li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--charcoal)}
-.bullet-dot{width:6px;height:6px;border-radius:50%;background:var(--green-mid);flex-shrink:0}
-.form-card{background:#fff;border:1px solid var(--border);border-radius:4px;padding:36px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.form-group label{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)}
-.form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--border);border-radius:3px;font-family:'Outfit',sans-serif;font-size:14px;color:var(--charcoal);background:#fff;outline:none;transition:border-color .2s;width:100%}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--green-mid)}
-.form-group textarea{resize:vertical;min-height:100px}
-.btn-submit{width:100%;background:var(--green-deep);color:#fff;padding:14px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;border:none;cursor:pointer;border-radius:3px;transition:background .2s;margin-top:4px}
-.btn-submit:hover{background:var(--green-mid)}
 
 /* SUPPLY CHAIN & INFRASTRUCTURE */
 .supply-section{background:linear-gradient(180deg,#f5f3ec 0%,var(--cream) 100%);padding:72px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
@@ -177,11 +205,48 @@ header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top
 @media(max-width:900px){.cap-grid{grid-template-columns:1fr 1fr}.cat-pills{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.cap-grid{grid-template-columns:1fr}.cat-pills{grid-template-columns:1fr}}
 
+/* ABOUT */
+.about-section{background:#fff;padding:72px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.about-inner{max-width:1080px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.about-left .eyebrow{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--green-mid);margin-bottom:16px}
+.about-left h2{font-family:'Playfair Display',serif;font-size:36px;font-weight:600;color:var(--charcoal);line-height:1.2;margin-bottom:20px}
+.about-left h2 span{color:var(--green-mid)}
+.about-left p{color:var(--muted);font-size:15px;line-height:1.8;margin-bottom:16px}
+.about-facts{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.about-fact{background:var(--cream);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:3px;padding:18px 20px}
+.about-fact-label{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--green-mid);font-weight:600;margin-bottom:6px}
+.about-fact-value{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:var(--charcoal);line-height:1.3}
+.about-fact-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* INQUIRY FORM */
+.inquiry-section{background:var(--cream);padding:64px 0;border-top:1px solid var(--border)}
+.inquiry-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.inquiry-left .eyebrow{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--green-mid);margin-bottom:16px}
+.inquiry-left h2{font-family:'Playfair Display',serif;font-size:36px;font-weight:600;color:var(--charcoal);line-height:1.2;margin-bottom:16px}
+.inquiry-left p{color:var(--muted);font-size:15px;line-height:1.75;margin-bottom:28px}
+.inquiry-bullets{list-style:none;display:flex;flex-direction:column;gap:10px}
+.inquiry-bullets li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--charcoal)}
+.bullet-dot{width:6px;height:6px;border-radius:50%;background:var(--green-mid);flex-shrink:0}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:4px;padding:36px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.form-group label{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)}
+.form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--border);border-radius:3px;font-family:'Outfit',sans-serif;font-size:14px;color:var(--charcoal);background:#fff;outline:none;transition:border-color .2s;width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--green-mid)}
+.form-group textarea{resize:vertical;min-height:100px}
+.btn-submit{width:100%;background:var(--green-deep);color:#fff;padding:14px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;border:none;cursor:pointer;border-radius:3px;transition:background .2s;margin-top:4px}
+.btn-submit:hover:not(:disabled){background:var(--green-mid)}
+.btn-submit:disabled{opacity:0.6;cursor:wait}
+.form-success{display:none;background:var(--green-pale);border:1px solid var(--green-mid);border-radius:4px;padding:32px;text-align:center}
+.form-success.show{display:block}
+.form-success-icon{width:56px;height:56px;margin:0 auto 16px;background:var(--green-mid);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.form-success-icon svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:3}
+.form-success h3{font-family:'Playfair Display',serif;font-size:22px;font-weight:600;color:var(--green-deep);margin-bottom:10px}
+.form-success p{font-size:14px;color:var(--charcoal);line-height:1.6;margin-bottom:6px}
+.form-success small{font-size:12px;color:var(--muted)}
+
 /* FOOTER */
 footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
-.footer-meta{border-top:1px solid rgba(255,255,255,0.06);padding:18px 0}
-.footer-meta-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:0.04em}
-@media(max-width:700px){.footer-meta-inner{flex-direction:column;text-align:center;gap:8px}}
 .footer-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;padding-bottom:40px}
 .footer-brand .logo-text .logo-name{color:#fff}
 .footer-brand .logo-text .logo-sub{color:rgba(255,255,255,0.4)}
@@ -190,9 +255,58 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
 .footer-col h4{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:16px}
 .footer-col a{display:block;font-size:13px;color:rgba(255,255,255,0.5);text-decoration:none;margin-bottom:8px;transition:color .2s}
 .footer-col a:hover{color:#fff}
-.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding:16px 32px;max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,0.3)}
-.cert-logos{display:flex;gap:12px}
+.footer-meta{border-top:1px solid rgba(255,255,255,0.06);padding:18px 0}
+.footer-meta-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:0.04em}
+@media(max-width:700px){.footer-meta-inner{flex-direction:column;text-align:center;gap:8px}}
+.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding:16px 32px;max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,0.3);gap:16px;flex-wrap:wrap}
+.cert-logos{display:flex;gap:12px;flex-wrap:wrap}
 .cert-chip{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:4px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 900px){
+  .hero-content{grid-template-columns:1fr;gap:40px;padding:48px 24px}
+  .hero h1{font-size:40px}
+  .why-inner{grid-template-columns:1fr;gap:40px}
+  .about-inner{grid-template-columns:1fr;gap:40px}
+  .inquiry-inner{grid-template-columns:1fr;gap:40px}
+  .product-grid{grid-template-columns:repeat(2,1fr)}
+  .footer-inner{grid-template-columns:1fr 1fr;gap:32px}
+  .util-bar .cert-strip{display:none}
+  .trust-strip .inner{flex-wrap:wrap;justify-content:center}
+  .trust-divider{display:none}
+}
+@media (max-width: 640px){
+  .header-main{gap:16px;padding:0 20px}
+  .header-search{display:none}
+  .header-actions{display:none}
+  .menu-toggle{display:inline-flex}
+  .util-links{font-size:11px;gap:16px}
+  .cat-nav .inner{padding:0 20px}
+  .section{padding:40px 20px}
+  .hero-content{padding:40px 20px}
+  .hero h1{font-size:32px}
+  .hero-visual{grid-template-columns:1fr 1fr;gap:10px}
+  .section-title{font-size:24px}
+  .why-section{padding:48px 0}
+  .why-inner{padding:0 20px}
+  .why-left h2{font-size:28px}
+  .why-grid{grid-template-columns:1fr}
+  .about-inner{padding:0 20px}
+  .about-left h2{font-size:28px}
+  .about-facts{grid-template-columns:1fr}
+  .inquiry-inner{padding:0 20px}
+  .inquiry-left h2{font-size:28px}
+  .form-card{padding:24px}
+  .form-row{grid-template-columns:1fr;gap:0}
+  .product-grid{grid-template-columns:1fr}
+  .footer-inner{grid-template-columns:1fr;padding:0 20px;padding-bottom:32px}
+  .footer-bottom{flex-direction:column;align-items:flex-start;padding:16px 20px}
+  .mobile-menu.open{display:flex}
+}
+.mobile-menu{display:none;flex-direction:column;background:#fff;border-bottom:1px solid var(--border);padding:16px 20px;gap:4px}
+.mobile-menu a{padding:10px 4px;font-size:14px;color:var(--charcoal);text-decoration:none;border-bottom:1px solid var(--border)}
+.mobile-menu a:last-child{border-bottom:none}
+.mobile-menu .btn-inquiry{margin-top:8px;text-align:center}
 </style>
 </head>
 <body>
@@ -207,9 +321,9 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
       <div class="cert-badge"><div class="cert-dot"></div> Commercial Grade</div>
     </div>
     <div class="util-links">
-      <a href="#">Wholesale Login</a>
-      <a href="#">Catalog Download</a>
-      <a href="#">Contact Us</a>
+      <a href="#inquiry">Wholesale Inquiries</a>
+      <a href="#about">About</a>
+      <a href="#inquiry">Contact Us</a>
     </div>
   </div>
 </div>
@@ -227,29 +341,41 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
       </div>
     </a>
     <div class="header-search">
-      <input type="text" placeholder="Search plates, foil, containers, straws...">
-      <button>
+      <input type="text" placeholder="Search plates, foil, containers, straws..." id="site-search">
+      <button aria-label="Search" id="site-search-btn">
         <svg viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
       </button>
     </div>
     <div class="header-actions">
+      <a href="https://www.amazon.com/s?k=TLAPS" class="btn-outline" style="color:var(--green-deep);border-color:var(--green-mid);padding:9px 18px;font-size:13px" target="_blank" rel="noopener">Shop on Amazon</a>
       <a href="#inquiry" class="btn-inquiry">Request Wholesale Pricing</a>
     </div>
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="#categories">Shop by Category</a>
+    <a href="#products">Featured Products</a>
+    <a href="#about">About TLAPS</a>
+    <a href="#inquiry">Wholesale Inquiries</a>
+    <a href="https://www.amazon.com/s?k=TLAPS" target="_blank" rel="noopener">Shop on Amazon</a>
+    <a href="#inquiry" class="btn-inquiry">Request Wholesale Pricing</a>
   </div>
 </header>
 
 <!-- CATEGORY NAV -->
 <nav class="cat-nav">
   <div class="inner">
-    <a href="#" class="active">All Products</a>
-    <a href="#">Paper Plates</a>
-    <a href="#">Foil Sheets</a>
-    <a href="#">Foil Trays & Pans</a>
-    <a href="#">Food Trays</a>
-    <a href="#">Straws</a>
-    <a href="#">Pizza Boxes</a>
-    <a href="#">Containers</a>
-    <a href="#">Wholesale</a>
+    <a href="#categories" class="active">All Products</a>
+    <a href="#categories">Paper Plates</a>
+    <a href="#categories">Foil Sheets</a>
+    <a href="#categories">Foil Trays &amp; Pans</a>
+    <a href="#categories">Food Trays</a>
+    <a href="#categories">Containers</a>
+    <a href="#categories">Cups &amp; Lids</a>
+    <a href="#categories">Gloves &amp; Cutlery</a>
+    <a href="#inquiry">Wholesale</a>
   </div>
 </nav>
 
@@ -260,9 +386,9 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
     <div>
       <div class="hero-tag">Commercial Grade Food Service</div>
       <h1>Built for the<br><em>Professional</em><br>Kitchen.</h1>
-      <p class="hero-sub">Trusted disposable food service supplies for restaurants, caterers, delis, and food trucks. Bulk pricing. Commercial quality.</p>
+      <p class="hero-sub">Trusted disposable food service supplies for restaurants, caterers, delis, and food trucks. Bulk pricing. Commercial quality. Prime shipping.</p>
       <div class="hero-ctas">
-        <a href="#products" class="btn-primary">Browse Products</a>
+        <a href="https://www.amazon.com/s?k=TLAPS" class="btn-primary" target="_blank" rel="noopener">Shop on Amazon</a>
         <a href="#inquiry" class="btn-outline">Request Wholesale Pricing</a>
       </div>
     </div>
@@ -272,7 +398,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
           <svg viewBox="0 0 52 52" fill="none"><circle cx="26" cy="26" r="22" stroke="#fff" stroke-width="2"/><circle cx="26" cy="26" r="15" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/><circle cx="26" cy="26" r="8" stroke="rgba(255,255,255,0.2)" stroke-width="1"/></svg>
         </div>
         <div class="hero-card-name">Paper Plates</div>
-        <div class="hero-card-count">125 ct · 9" & 10×8"</div>
+        <div class="hero-card-count">125 ct · 9" &amp; 10×8"</div>
       </div>
       <div class="hero-card">
         <div class="hero-card-icon">
@@ -324,48 +450,96 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
     <div class="trust-divider"></div>
     <div class="trust-item">
       <div class="trust-icon"><svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9l-7-7z" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
-      <div class="trust-text"><strong>Bulk Orders</strong><span>Cases of 500–1000 ct</span></div>
+      <div class="trust-text"><strong>Prime Shipping</strong><span>All products Amazon Prime</span></div>
     </div>
   </div>
 </div>
 
 <!-- CATEGORIES -->
-<div class="section">
+<div class="section" id="categories">
   <div class="section-head">
     <h2 class="section-title">Shop by <span>Category</span></h2>
-    <a href="#" class="section-link">View all products →</a>
+    <a href="https://www.amazon.com/s?k=TLAPS" class="section-link" target="_blank" rel="noopener">View all on Amazon →</a>
   </div>
   <div class="cat-grid">
-    <div class="cat-card">
-      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+paper+plates" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
       <div class="cat-card-name">Paper Plates</div>
       <div class="cat-card-count">9" · 10×8" Oval</div>
-    </div>
-    <div class="cat-card">
-      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="10" width="24" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 15h24M10 10v14M22 10v14" stroke="currentColor" stroke-width="1.5"/><path d="M8 5l16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+foil+sheets" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="10" width="24" height="14" rx="1" fill="none" stroke="currentColor"/><path d="M4 15h24M10 10v14M22 10v14" stroke="currentColor" stroke-width="1.5"/><path d="M8 5l16 0" stroke="currentColor" stroke-linecap="round"/></svg></div>
       <div class="cat-card-name">Foil Sheets</div>
       <div class="cat-card-count">9×10.75" · 12×10.75" · 12×12"</div>
-    </div>
-    <div class="cat-card">
-      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="12" width="24" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="8" width="24" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 12v12M4 18h24" stroke="currentColor" stroke-width="1.5"/></svg></div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+foil+trays" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="12" width="24" height="12" rx="1" fill="none" stroke="currentColor"/><rect x="4" y="8" width="24" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 12v12M4 18h24" stroke="currentColor" stroke-width="1.5"/></svg></div>
       <div class="cat-card-name">Foil Trays</div>
       <div class="cat-card-count">3-Compartment · 4LB Pans</div>
-    </div>
-    <div class="cat-card">
-      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M6 14l4 10h12l4-10H6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 14h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+food+trays" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M6 14l4 10h12l4-10H6z" fill="none" stroke="currentColor"/><path d="M4 14h24" stroke="currentColor" stroke-linecap="round"/></svg></div>
       <div class="cat-card-name">Food Trays</div>
       <div class="cat-card-count">2.5LB · 1000 Count</div>
-    </div>
-    <div class="cat-card">
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+straws" target="_blank" rel="noopener">
       <div class="cat-card-icon"><svg viewBox="0 0 32 32"><line x1="16" y1="4" x2="16" y2="28" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="16" cy="8" rx="4" ry="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
       <div class="cat-card-name">Straws</div>
       <div class="cat-card-count">7.75" Wrapped · 500 Count</div>
-    </div>
-    <div class="cat-card">
-      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="10" width="24" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="6" width="24" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+pizza+boxes" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="10" width="24" height="16" rx="1" fill="none" stroke="currentColor"/><rect x="4" y="6" width="24" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
       <div class="cat-card-name">Pizza Boxes</div>
       <div class="cat-card-count">10" Brown · 50 Count</div>
-    </div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+cups+lids" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M8 8h16l-2 18H10L8 8z" fill="none" stroke="currentColor"/><path d="M8 8h16" stroke="currentColor" stroke-width="1.5"/><ellipse cx="16" cy="6" rx="9" ry="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+      <div class="cat-card-name">Cups &amp; Lids</div>
+      <div class="cat-card-count">Various sizes · 1000 ct</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+deli+containers" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><ellipse cx="16" cy="10" rx="11" ry="3" fill="none" stroke="currentColor"/><path d="M5 10v12c0 1.7 4.9 3 11 3s11-1.3 11-3V10" fill="none" stroke="currentColor"/></svg></div>
+      <div class="cat-card-name">Deli Containers</div>
+      <div class="cat-card-count">Round · Hinged Lid</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+clamshell+containers" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="14" width="24" height="10" rx="1.5" fill="none" stroke="currentColor"/><path d="M4 14c0-3 5-5 12-5s12 2 12 5" fill="none" stroke="currentColor"/><path d="M4 18h24" stroke="currentColor" stroke-width="1.5"/></svg></div>
+      <div class="cat-card-name">Clamshells</div>
+      <div class="cat-card-count">Foam · Compostable</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+nitrile+gloves" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M10 28V14c0-1 .5-2 2-2h.5V6c0-1 1-2 2-2s2 1 2 2v6h1V5c0-1 1-2 2-2s2 1 2 2v7h1V6c0-1 1-2 2-2s2 1 2 2v10c0 6-3 12-8 12h-6.5z" fill="none" stroke="currentColor"/></svg></div>
+      <div class="cat-card-name">Nitrile Gloves</div>
+      <div class="cat-card-count">Powder-free · 100 ct</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+cutlery" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M10 4v10c0 1 1 2 2 2M14 4v10c0 1-1 2-2 2M12 16v12" stroke="currentColor" stroke-linecap="round" fill="none"/><path d="M22 4c-2 0-3 2-3 4s1 4 3 4v16" stroke="currentColor" stroke-linecap="round" fill="none"/></svg></div>
+      <div class="cat-card-name">Cutlery</div>
+      <div class="cat-card-count">Forks · Knives · Spoons · Wrapped</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+trash+bags" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><path d="M8 10l2 18h12l2-18H8z" fill="none" stroke="currentColor"/><path d="M6 10h20" stroke="currentColor" stroke-linecap="round"/><path d="M12 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="cat-card-name">Bags &amp; Liners</div>
+      <div class="cat-card-count">Trash · Food Storage</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
+    <a class="cat-card" href="https://www.amazon.com/s?k=TLAPS+deli+wrap" target="_blank" rel="noopener">
+      <div class="cat-card-icon"><svg viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="1" fill="none" stroke="currentColor"/><path d="M4 12h24M4 18h24M4 24h24" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg></div>
+      <div class="cat-card-name">Deli Wrap</div>
+      <div class="cat-card-count">Tissue Sheets · Pre-cut</div>
+      <div class="cat-card-link">View on Amazon →</div>
+    </a>
   </div>
 </div>
 
@@ -374,7 +548,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
   <div style="max-width:1280px;margin:0 auto;padding:48px 32px 0">
     <div class="section-head">
       <h2 class="section-title">Featured <span>Products</span></h2>
-      <a href="#" class="section-link">View full catalog →</a>
+      <a href="https://www.amazon.com/s?k=TLAPS" class="section-link" target="_blank" rel="noopener">View full catalog on Amazon →</a>
     </div>
   </div>
   <div style="max-width:1280px;margin:0 auto">
@@ -389,7 +563,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="product-desc">Heavy duty grease resistant coating. 125 count bulk pack for parties, BBQ, and everyday use.</div>
         <div class="product-footer">
           <div class="product-price">$17.44 <span>MSRP / 125 ct</span></div>
-          <button class="btn-small">Get Quote</button>
+          <a href="https://www.amazon.com/s?k=TLAPS+paper+plates+9+inch" class="btn-small" target="_blank" rel="noopener">View on Amazon</a>
         </div>
       </div>
       <div class="product-card">
@@ -401,7 +575,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="product-desc">500 pre-cut sheets in pop-up dispenser box. Extra large for wrapping burritos, subs, and catering.</div>
         <div class="product-footer">
           <div class="product-price">$43.39 <span>MSRP / 500 ct</span></div>
-          <button class="btn-small">Get Quote</button>
+          <a href="https://www.amazon.com/s?k=TLAPS+pop+up+foil+sheets" class="btn-small" target="_blank" rel="noopener">View on Amazon</a>
         </div>
       </div>
       <div class="product-card">
@@ -414,7 +588,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="product-desc">20 complete sets. Divided meal prep pans, oven and freezer safe. Snap-fit board lids included.</div>
         <div class="product-footer">
           <div class="product-price">$18.69 <span>MSRP / 20 sets</span></div>
-          <button class="btn-small">Get Quote</button>
+          <a href="https://www.amazon.com/s?k=TLAPS+3+compartment+foil+trays" class="btn-small" target="_blank" rel="noopener">View on Amazon</a>
         </div>
       </div>
       <div class="product-card">
@@ -426,7 +600,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="product-desc">50 count corrugated cardboard. Grease resistant interior, easy lock-tab closure. No tape needed.</div>
         <div class="product-footer">
           <div class="product-price">$60.39 <span>MSRP / 50 ct</span></div>
-          <button class="btn-small">Get Quote</button>
+          <a href="https://www.amazon.com/s?k=TLAPS+pizza+boxes" class="btn-small" target="_blank" rel="noopener">View on Amazon</a>
         </div>
       </div>
     </div>
@@ -459,10 +633,46 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="why-desc">All TLAPS products meet FDA food contact standards for safe direct food use.</div>
       </div>
       <div class="why-item">
-        <div class="why-num">Bulk</div>
-        <div class="why-label">Wholesale Pricing</div>
-        <div class="why-desc">Case quantities and volume pricing available for distributors, restaurants, and institutions.</div>
+        <div class="why-num">Prime</div>
+        <div class="why-label">Amazon Prime Shipping</div>
+        <div class="why-desc">Every TLAPS listing ships with Amazon Prime — fast, free delivery to business and consumer buyers.</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about-section" id="about">
+  <div class="about-inner">
+    <div class="about-left">
+      <div class="eyebrow">About TLAPS</div>
+      <h2>Built by <span>I3 Enterprise Inc.</span></h2>
+      <p>Founded in 2015 and headquartered in Brea, California, I3 Enterprise Inc. is a US-based wholesale supplier operating warehouses across Southern California.</p>
+      <p>TLAPS is our commercial food service brand — serving restaurants, caterers, food trucks, delis, institutional buyers, and smart home cooks nationwide. Every TLAPS product ships with Amazon Prime for fast, reliable delivery.</p>
+    </div>
+    <div class="about-right">
+      <ul class="about-facts">
+        <li class="about-fact">
+          <div class="about-fact-label">Founded</div>
+          <div class="about-fact-value">2015</div>
+          <div class="about-fact-sub">11+ years in business</div>
+        </li>
+        <li class="about-fact">
+          <div class="about-fact-label">Headquarters</div>
+          <div class="about-fact-value">Brea, California</div>
+          <div class="about-fact-sub">US entity · SoCal warehousing</div>
+        </li>
+        <li class="about-fact">
+          <div class="about-fact-label">Fulfillment</div>
+          <div class="about-fact-value">Amazon Prime</div>
+          <div class="about-fact-sub">Every TLAPS SKU</div>
+        </li>
+        <li class="about-fact">
+          <div class="about-fact-label">Coverage</div>
+          <div class="about-fact-value">Nationwide</div>
+          <div class="about-fact-sub">US restaurants &amp; food service</div>
+        </li>
+      </ul>
     </div>
   </div>
 </section>
@@ -471,7 +681,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
 <section class="supply-section">
   <div class="supply-inner">
     <div class="supply-head">
-      <div class="eyebrow">Infrastructure & Capabilities</div>
+      <div class="eyebrow">Infrastructure &amp; Capabilities</div>
       <h2>Our <span>Supply Chain</span></h2>
       <p>Backed by 25+ years of food service industry experience and an established US-based fulfillment network — built to support distributors, marketplaces, and institutional buyers at scale.</p>
     </div>
@@ -480,7 +690,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
       <div class="cap-card">
         <div class="cap-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg></div>
         <div class="cap-text">
-          <strong>US Warehouse & Fulfillment</strong>
+          <strong>US Warehouse &amp; Fulfillment</strong>
           <span>Southern California facility in Chino, CA — fast nationwide shipping from a single hub.</span>
         </div>
       </div>
@@ -508,7 +718,7 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
       <div class="cap-card">
         <div class="cap-icon"><svg viewBox="0 0 24 24"><path d="M20 7h-3V5a3 3 0 00-3-3h-4a3 3 0 00-3 3v2H4a1 1 0 00-1 1v12a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1zm-11-2a1 1 0 011-1h4a1 1 0 011 1v2H9V5zm10 14H5V9h14v10z"/></svg></div>
         <div class="cap-text">
-          <strong>Custom Packaging & Private Label</strong>
+          <strong>Custom Packaging &amp; Private Label</strong>
           <span>Custom pack sizes, private label, and branded packaging available for qualified buyers.</span>
         </div>
       </div>
@@ -528,9 +738,9 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
       </div>
       <div class="cat-pills">
         <span class="cat-pill">Paper Plates</span>
-        <span class="cat-pill">Plastic Plates & Bowls</span>
+        <span class="cat-pill">Plastic Plates &amp; Bowls</span>
         <span class="cat-pill">Foil Sheets</span>
-        <span class="cat-pill">Foil Trays & Pans</span>
+        <span class="cat-pill">Foil Trays &amp; Pans</span>
         <span class="cat-pill">Foil Take-out Containers</span>
         <span class="cat-pill">Food Trays</span>
         <span class="cat-pill">Pizza Boxes</span>
@@ -560,26 +770,41 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <li><div class="bullet-dot"></div>Custom pack sizes available on select items</li>
         <li><div class="bullet-dot"></div>Net-30 terms for qualified buyers</li>
         <li><div class="bullet-dot"></div>Dedicated account support</li>
-        <li><div class="bullet-dot"></div>Drop-ship available through Amazon VC</li>
+        <li><div class="bullet-dot"></div>Amazon Prime fulfillment nationwide</li>
       </ul>
     </div>
-    <div class="form-card">
-      <div class="form-row">
-        <div class="form-group"><label>First Name</label><input type="text" placeholder="Jane"></div>
-        <div class="form-group"><label>Last Name</label><input type="text" placeholder="Smith"></div>
-      </div>
-      <div class="form-group"><label>Business Name</label><input type="text" placeholder="Restaurant / Catering Co. / Distributor"></div>
-      <div class="form-group"><label>Email Address</label><input type="email" placeholder="jane@yourbusiness.com"></div>
-      <div class="form-row">
-        <div class="form-group"><label>Phone</label><input type="tel" placeholder="(555) 000-0000"></div>
-        <div class="form-group"><label>Business Type</label>
-          <select><option>Restaurant / Food Service</option><option>Catering</option><option>Distributor</option><option>Food Truck</option><option>Institution</option><option>Other</option></select>
+    <div>
+      <form class="form-card" id="inquiry-form" action="mailto:info@i3enterpriseinc.com" method="post" enctype="text/plain">
+        <div class="form-row">
+          <div class="form-group"><label for="first_name">First Name</label><input id="first_name" name="first_name" type="text" placeholder="Jane" required></div>
+          <div class="form-group"><label for="last_name">Last Name</label><input id="last_name" name="last_name" type="text" placeholder="Smith" required></div>
         </div>
+        <div class="form-group"><label for="business">Business Name</label><input id="business" name="business" type="text" placeholder="Restaurant / Catering Co. / Distributor" required></div>
+        <div class="form-group"><label for="email">Email Address</label><input id="email" name="email" type="email" placeholder="jane@yourbusiness.com" required></div>
+        <div class="form-row">
+          <div class="form-group"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" placeholder="(555) 000-0000"></div>
+          <div class="form-group"><label for="business_type">Business Type</label>
+            <select id="business_type" name="business_type">
+              <option>Restaurant / Food Service</option>
+              <option>Catering</option>
+              <option>Distributor</option>
+              <option>Food Truck</option>
+              <option>Institution</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label for="products">Products of Interest</label>
+          <textarea id="products" name="products" placeholder='E.g. Paper plates 9", foil sheets 12x12, pizza boxes 10" — list any quantities or specifications' required></textarea>
+        </div>
+        <button type="submit" class="btn-submit" id="inquiry-submit">Submit Wholesale Inquiry</button>
+      </form>
+      <div class="form-success" id="inquiry-success">
+        <div class="form-success-icon"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Thank you — we received your inquiry.</h3>
+        <p>We'll respond within one business day at the email you provided.</p>
+        <small>If your email client opened a draft, please click Send to complete your inquiry. Or email us directly at <a href="mailto:info@i3enterpriseinc.com" style="color:var(--green-mid)">info@i3enterpriseinc.com</a>.</small>
       </div>
-      <div class="form-group"><label>Products of Interest</label>
-        <textarea placeholder="E.g. Paper plates 9&#34;, foil sheets 12x12, pizza boxes 10&#34; — list any quantities or specifications"></textarea>
-      </div>
-      <button class="btn-submit">Submit Wholesale Inquiry</button>
     </div>
   </div>
 </section>
@@ -592,43 +817,43 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
         <div class="logo-mark"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2L4 6v6c0 5.1 3.4 9.9 8 11 4.6-1.1 8-5.9 8-11V6L12 2z"/></svg></div>
         <div class="logo-text"><span class="logo-name">TLAPS</span><span class="logo-sub">Food Service Supply</span></div>
       </a>
-      <p>Commercial grade disposable food service supplies. Trusted by restaurants, caterers, and food service professionals across the United States.</p>
+      <p>Commercial grade disposable food service supplies. Trusted by restaurants, caterers, and food service professionals across the United States. A brand of I3 Enterprise Inc., Brea, California.</p>
     </div>
     <div class="footer-col">
       <h4>Products</h4>
-      <a href="#">Paper Plates</a>
-      <a href="#">Foil Sheets</a>
-      <a href="#">Foil Trays & Pans</a>
-      <a href="#">Food Trays</a>
-      <a href="#">Straws</a>
-      <a href="#">Pizza Boxes</a>
+      <a href="#categories">Paper Plates</a>
+      <a href="#categories">Foil Sheets</a>
+      <a href="#categories">Foil Trays &amp; Pans</a>
+      <a href="#categories">Food Trays</a>
+      <a href="#categories">Containers</a>
+      <a href="#categories">Cups &amp; Lids</a>
+      <a href="#categories">Gloves &amp; Cutlery</a>
     </div>
     <div class="footer-col">
       <h4>Company</h4>
-      <a href="#">About TLAPS</a>
-      <a href="#">Certifications</a>
-      <a href="#">Wholesale Program</a>
-      <a href="#">Catalog Download</a>
-      <a href="#">Contact Us</a>
+      <a href="#about">About TLAPS</a>
+      <a href="#about">Certifications</a>
+      <a href="#inquiry">Wholesale Program</a>
+      <a href="https://www.amazon.com/s?k=TLAPS" target="_blank" rel="noopener">Shop on Amazon</a>
+      <a href="#inquiry">Contact Us</a>
     </div>
     <div class="footer-col">
       <h4>Support</h4>
-      <a href="#">Wholesale Login</a>
-      <a href="#">Order Status</a>
-      <a href="#">Returns Policy</a>
-      <a href="#">FAQ</a>
-      <a href="#">Terms of Service</a>
+      <a href="#inquiry">Wholesale Inquiries</a>
+      <a href="https://www.amazon.com/s?k=TLAPS" target="_blank" rel="noopener">Order on Amazon</a>
+      <a href="mailto:info@i3enterpriseinc.com">info@i3enterpriseinc.com</a>
+      <a href="#about">About Our Company</a>
     </div>
   </div>
   <div class="footer-meta">
     <div class="footer-meta-inner">
       <span>I3 Enterprise Inc. · Brea, CA · Est. 2015</span>
-      <span>Warehouse & Fulfillment: Chino, CA</span>
+      <span>Warehouse &amp; Fulfillment: Chino, CA</span>
       <span>25+ Years of Food Service Industry Experience</span>
     </div>
   </div>
-  <div class="footer-bottom" style="max-width:1280px;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-between;align-items:center">
-    <span>© 2026 TLAPS Food Service Supply · I3 Enterprise Inc. All rights reserved.</span>
+  <div class="footer-bottom">
+    <span>© 2026 TLAPS Food Service Supply · I3 Enterprise Inc., Brea, California. All rights reserved.</span>
     <div class="cert-logos">
       <div class="cert-chip">GS1 Certified</div>
       <div class="cert-chip">FDA Compliant</div>
@@ -636,6 +861,66 @@ footer{background:var(--charcoal);color:rgba(255,255,255,0.6);padding:56px 0 0}
     </div>
   </div>
 </footer>
+
+<script>
+// Mobile menu toggle
+(function(){
+  var toggle = document.getElementById('menu-toggle');
+  var menu = document.getElementById('mobile-menu');
+  if (toggle && menu) {
+    toggle.addEventListener('click', function(){
+      menu.classList.toggle('open');
+    });
+    menu.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){ menu.classList.remove('open'); });
+    });
+  }
+})();
+
+// Site search → Amazon
+(function(){
+  var input = document.getElementById('site-search');
+  var btn = document.getElementById('site-search-btn');
+  function go(){
+    var q = (input && input.value || '').trim();
+    var url = 'https://www.amazon.com/s?k=' + encodeURIComponent('TLAPS ' + q);
+    window.open(url, '_blank', 'noopener');
+  }
+  if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); go(); });
+  if (input) input.addEventListener('keydown', function(e){ if (e.key === 'Enter'){ e.preventDefault(); go(); } });
+})();
+
+// Inquiry form submission — builds prefilled email and shows inline success
+(function(){
+  var form = document.getElementById('inquiry-form');
+  var success = document.getElementById('inquiry-success');
+  if (!form || !success) return;
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = new FormData(form);
+    var subject = 'TLAPS Wholesale Inquiry — ' + (f.get('business') || 'New Buyer');
+    var bodyLines = [
+      'Name: ' + (f.get('first_name') || '') + ' ' + (f.get('last_name') || ''),
+      'Business: ' + (f.get('business') || ''),
+      'Email: ' + (f.get('email') || ''),
+      'Phone: ' + (f.get('phone') || '(not provided)'),
+      'Business Type: ' + (f.get('business_type') || ''),
+      '',
+      'Products of Interest:',
+      (f.get('products') || '')
+    ];
+    var href = 'mailto:info@i3enterpriseinc.com'
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(bodyLines.join('\n'));
+    // Open user's email client with prefilled draft
+    window.location.href = href;
+    // Replace form with success message
+    form.style.display = 'none';
+    success.classList.add('show');
+    success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+})();
+</script>
 
 </body>
 </html>
