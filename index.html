@@ -580,3 +580,24 @@ function submitInquiry(e) {
   var prods   = document.getElementById('products-interest').value;
 
   var body = 'Wholesale Inquiry from TLAPS Website\n\n'
+    + 'Name: ' + fname + ' ' + lname + '\n'
+    + 'Business: ' + biz + '\n'
+    + 'Email: ' + email + '\n'
+    + 'Phone: ' + phone + '\n'
+    + 'Business Type: ' + biztype + '\n'
+    + 'Products of Interest:\n' + prods;
+
+  var subject = 'Wholesale Inquiry – ' + biz;
+  var mailto  = 'mailto:support@tlapspro.com'
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body='    + encodeURIComponent(body);
+
+  window.location.href = mailto;
+
+  document.getElementById('form-success').style.display = 'block';
+  setTimeout(function(){ document.getElementById('form-success').style.display = 'none'; }, 5000);
+}
+</script>
+
+</body>
+</html>
