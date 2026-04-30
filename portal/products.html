@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Product Catalog</h1>
+        <div class="subtitle">TLAPS launch products — I3 SKU ↔ DHG SKU mapping (source of truth)</div>
+      </div>
+      <div class="muted" id="meta"></div>
+    </div>
+
+    <div class="section">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>I3 SKU</th>
+            <th>DHG SKU</th>
+            <th>ASIN</th>
+            <th>UPC</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>MAP</th>
+          </tr>
+        </thead>
+        <tbody id="products-body">
+          <tr><td colspan="7" class="text-center muted" style="padding:40px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="card" style="background:#fffbeb;border-color:#fde68a">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="font-size:18px;color:#b45309">⚠</div>
+          <div style="font-size:13px;color:#78350f">
+            <strong>Phase 1 — Read-only.</strong>
+            Inline editing and Supabase persistence ship in Phase 2. To update a SKU today, edit
+            <code style="background:rgba(0,0,0,0.05);padding:1px 4px;border-radius:3px">references/sku_mapping.json</code> in the repo.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('products');
+
+  function categoryBadge(cat) {
+    const label = (cat || '').replace(/_/g, ' ');
+    return `<span class="badge badge-tlaps">${label}</span>`;
+  }
+
+  (async () => {
+    try {
+      const data = await loadSkuMapping();
+      const tbody = document.getElementById('products-body');
+
+      if (!data.products || !data.products.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center muted">No products in mapping.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.products.map(p => `
+        <tr>
+          <td class="mono">${p.i3_sku}</td>
+          <td class="mono">${p.dhg_sku}</td>
+          <td><a href="https://www.amazon.com/dp/${p.asin}" target="_blank" rel="noopener" class="mono">${p.asin}</a></td>
+          <td class="mono">${p.upc || '<span class="muted">—</span>'}</td>
+          <td>${categoryBadge(p.category)}</td>
+          <td>${p.description || ''}</td>
+          <td>${p.map_price ? '$' + p.map_price : '<span class="muted">—</span>'}</td>
+        </tr>
+      `).join('');
+
+      const meta = document.getElementById('meta');
+      meta.textContent = `${data.products.length} products · v${data.version || '—'}${data.updated ? ' · ' + data.updated : ''}`;
+    } catch (e) {
+      document.getElementById('products-body').innerHTML =
+        `<tr><td colspan="7" class="text-center" style="color:var(--error);padding:30px">Failed to load mapping: ${e.message}</td></tr>`;
+    }
+  })();
+</script>
+</body>
+</html>

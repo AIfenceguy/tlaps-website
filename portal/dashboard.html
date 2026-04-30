@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="subtitle">TLAPS / DHG / I3 Enterprise — daily ops hub</div>
+      </div>
+      <div class="muted" id="today"></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Active SKUs</div>
+        <div class="value" id="stat-skus">10</div>
+        <div class="delta">All launch products live</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Pending POs</div>
+        <div class="value">0</div>
+        <div class="delta">Not yet sent to DHG</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Open Orders</div>
+        <div class="value">0</div>
+        <div class="delta">Dropship + stocking</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Recent Batches</div>
+        <div class="value">0</div>
+        <div class="delta">Last 7 days</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Modules</h2>
+      <div class="card-grid">
+        <a href="products.html" class="module-card">
+          <div class="mc-icon">▦</div>
+          <h3>Product Management</h3>
+          <p>View SKU mapping, ASINs, descriptions, and pricing for the 10 launch products. Source of truth for the label processor and PO generator.</p>
+        </a>
+
+        <a href="labels.html" class="module-card">
+          <div class="mc-icon">⬚</div>
+          <h3>Label Processor</h3>
+          <p>Upload Vendor Central label PDFs and an Amazon stocking PO Excel — auto-stamp TLAPS labels with I3 / DHG SKUs. Non-TLAPS pass through clean.</p>
+        </a>
+
+        <a href="#" class="module-card disabled" onclick="event.preventDefault();toast('Orders module — coming in Phase 2','warning');return false">
+          <div class="mc-icon">▤</div>
+          <h3>Orders <span class="coming-soon-badge">Soon</span></h3>
+          <p>Stocking PO import, dropship orders, DHG PO generation, Gmail dispatch to Raymond / Wendy / Grace.</p>
+        </a>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Quick Reference</h2>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px">
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Public Site</div>
+            <div><a href="../index.html" target="_blank">tlapspro.com</a></div>
+          </div>
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">DHG Contacts</div>
+            <div class="muted" style="font-size:13px">Raymond (primary) · Wendy · Grace</div>
+          </div>
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Print Settings</div>
+            <div class="muted" style="font-size:13px">4×6 paper · 100% scale · no margins · portrait</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('dashboard');
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  document.getElementById('today').textContent = today;
+
+  // Try to update SKU count from mapping
+  loadSkuMapping().then(d => {
+    document.getElementById('stat-skus').textContent = d.products.length;
+  }).catch(() => { /* keep default */ });
+</script>
+</body>
+</html>

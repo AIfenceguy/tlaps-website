@@ -1,0 +1,96 @@
+{
+  "version": "2026.04",
+  "updated": "2026-04-29",
+  "products": [
+    {
+      "i3_sku": "TLAPS-TRAY-FT-25",
+      "dhg_sku": "ft-25",
+      "asin": "B0GXF61RVS",
+      "upc": "",
+      "category": "FOOD_TRAY",
+      "description": "Paper Food Trays 1000ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-8796009",
+      "dhg_sku": "PP9PR",
+      "asin": "B0GWSBXR43",
+      "upc": "",
+      "category": "PLATE",
+      "description": "Paper Plates 9\" 125ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-PIZZA-10PIZBR4C",
+      "dhg_sku": "10PIZBR4C",
+      "asin": "B0GXFGM36Q",
+      "upc": "",
+      "category": "PIZZA_BOX",
+      "description": "Pizza Boxes 10\" 50ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-CONT-10-F4LBOP",
+      "dhg_sku": "10-F4LBOP+FDLOPS4LB",
+      "asin": "B0GXF6FZNK",
+      "upc": "",
+      "category": "CONTAINER",
+      "description": "Foil Pans 4LB 10 sets",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-FOIL-FOIL23",
+      "dhg_sku": "FOIL23",
+      "asin": "B0GXF88MSN",
+      "upc": "",
+      "category": "FOIL_TRAY",
+      "description": "3-Comp Foil Trays 20 sets",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-PLTS-B108W-P",
+      "dhg_sku": "B108W-P",
+      "asin": "B0GXFCF1BT",
+      "upc": "",
+      "category": "PLATE",
+      "description": "Sugarcane Plates 10x8\" 125ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-FOIL-1PM-1212POPS",
+      "dhg_sku": "1PM-1212POPS",
+      "asin": "B0GXFCWCWQ",
+      "upc": "",
+      "category": "FOIL_SHEET",
+      "description": "Foil Sheets 12x12\" 500ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-FOIL-500-9POPS",
+      "dhg_sku": "500-9pops",
+      "asin": "B0GXF7VGTS",
+      "upc": "",
+      "category": "FOIL_SHEET",
+      "description": "Foil Sheets 9x10.75\" 500ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-STRW-500-PM-S7WT245",
+      "dhg_sku": "500-PM-S7WT245",
+      "asin": "B0GXF4JMW4",
+      "upc": "",
+      "category": "STRAW",
+      "description": "Wrapped Straws 7.75\" 500ct",
+      "map_price": ""
+    },
+    {
+      "i3_sku": "TLAPS-FOIL-PM-12POPS",
+      "dhg_sku": "PM-12POPS",
+      "asin": "B0GXFHGM59",
+      "upc": "",
+      "category": "FOIL_SHEET",
+      "description": "Foil Sheets 12x10.75\" 500ct",
+      "map_price": ""
+    }
+  ]
+}
