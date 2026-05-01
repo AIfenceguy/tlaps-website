@@ -21,27 +21,19 @@
       <div class="muted" id="today"></div>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="label">Active SKUs</div>
-        <div class="value" id="stat-skus">10</div>
-        <div class="delta">All launch products live</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Pending POs</div>
-        <div class="value">0</div>
-        <div class="delta">Not yet sent to DHG</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Open Orders</div>
-        <div class="value">0</div>
-        <div class="delta">Dropship + stocking</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Recent Batches</div>
-        <div class="value">0</div>
-        <div class="delta">Last 7 days</div>
-      </div>
+    <div class="quick-actions">
+      <a href="labels.html"   class="btn btn-primary">⬚ Process Labels</a>
+      <a href="orders.html"   class="btn btn-primary">▤ New DHG PO</a>
+      <a href="costs.html"    class="btn btn-secondary">$ Check Margins</a>
+      <a href="products.html" class="btn btn-ghost">▦ View Products</a>
+    </div>
+
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card"><div class="label">Active SKUs</div><div class="value" id="s-skus">—</div><div class="delta">All launch products</div></div>
+      <div class="stat-card"><div class="label">Videos Uploaded</div><div class="value" id="s-video">—</div><div class="delta">of 10</div></div>
+      <div class="stat-card"><div class="label">A+ Submitted</div><div class="value" id="s-aplus">—</div><div class="delta">of 10</div></div>
+      <div class="stat-card"><div class="label">Costs Confirmed</div><div class="value" id="s-cost">—</div><div class="delta">DHG cost from Raymond</div></div>
+      <div class="stat-card"><div class="label">Saved POs</div><div class="value" id="s-pos">—</div><div class="delta">In local history</div></div>
     </div>
 
     <div class="section">
@@ -50,19 +42,32 @@
         <a href="products.html" class="module-card">
           <div class="mc-icon">▦</div>
           <h3>Product Management</h3>
-          <p>View SKU mapping, ASINs, descriptions, and pricing for the 10 launch products. Source of truth for the label processor and PO generator.</p>
+          <p>Full SKU catalog with costs, margins, video status, A+ status. Click any product for the detail page.</p>
         </a>
-
         <a href="labels.html" class="module-card">
           <div class="mc-icon">⬚</div>
           <h3>Label Processor</h3>
-          <p>Upload Vendor Central label PDFs and an Amazon stocking PO Excel — auto-stamp TLAPS labels with I3 / DHG SKUs. Non-TLAPS pass through clean.</p>
+          <p>Upload PO Excel + label PDF — auto-stamp TLAPS labels with I3 / DHG SKUs. Non-TLAPS pass through.</p>
         </a>
-
-        <a href="#" class="module-card disabled" onclick="event.preventDefault();toast('Orders module — coming in Phase 2','warning');return false">
+        <a href="orders.html" class="module-card">
           <div class="mc-icon">▤</div>
-          <h3>Orders <span class="coming-soon-badge">Soon</span></h3>
-          <p>Stocking PO import, dropship orders, DHG PO generation, Gmail dispatch to Raymond / Wendy / Grace.</p>
+          <h3>Orders &amp; PO</h3>
+          <p>Import Amazon stocking POs, auto-generate DHG purchase orders, save history.</p>
+        </a>
+        <a href="costs.html" class="module-card">
+          <div class="mc-icon">$</div>
+          <h3>Costs &amp; Margins</h3>
+          <p>Live P&amp;L calculator for every SKU. MAP × 0.78 × 0.78 = Net to I3, profit and margin per unit.</p>
+        </a>
+        <a href="media.html" class="module-card">
+          <div class="mc-icon">▩</div>
+          <h3>Media Library</h3>
+          <p>Main images, video status, A+ content tracker — single view of all listing assets.</p>
+        </a>
+        <a href="keywords.html" class="module-card">
+          <div class="mc-icon">K</div>
+          <h3>Keywords</h3>
+          <p>Listing titles, backend search terms, keyword suggestion bank for food service / salon / eco angles.</p>
         </a>
       </div>
     </div>
@@ -72,16 +77,20 @@
       <div class="card">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px">
           <div>
-            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Public Site</div>
+            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Public Site</div>
             <div><a href="../index.html" target="_blank">tlapspro.com</a></div>
           </div>
           <div>
-            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">DHG Contacts</div>
+            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">DHG Contacts</div>
             <div class="muted" style="font-size:13px">Raymond (primary) · Wendy · Grace</div>
           </div>
           <div>
-            <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Print Settings</div>
+            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Print Settings</div>
             <div class="muted" style="font-size:13px">4×6 paper · 100% scale · no margins · portrait</div>
+          </div>
+          <div>
+            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Vendor Code Rule</div>
+            <div class="muted" style="font-size:13px">Always create <span class="code">I3ENT</span> first, clone ASIN to <span class="code">I3ENU</span></div>
           </div>
         </div>
       </div>
@@ -94,15 +103,33 @@
   requireAuth();
   renderSidebar('dashboard');
 
-  const today = new Date().toLocaleDateString('en-US', {
+  document.getElementById('today').textContent = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
-  document.getElementById('today').textContent = today;
 
-  // Try to update SKU count from mapping
-  loadSkuMapping().then(d => {
-    document.getElementById('stat-skus').textContent = d.products.length;
-  }).catch(() => { /* keep default */ });
+  (async () => {
+    try {
+      const data = await loadSkuMapping(true);
+      const products = data.products;
+
+      const total = products.length;
+      const videosUp = products.filter(p => p.media && p.media.video_status === 'uploaded').length;
+      const aplusUp  = products.filter(p => p.media && (p.media.aplus_status === 'submitted' || p.media.aplus_status === 'live')).length;
+      const costConf = products.filter(p => p.dhg_cost_confirmed).length;
+
+      document.getElementById('s-skus').textContent  = total;
+      document.getElementById('s-video').textContent = videosUp;
+      document.getElementById('s-aplus').textContent = aplusUp;
+      document.getElementById('s-cost').textContent  = costConf;
+    } catch (e) {
+      toast('Stats failed: ' + e.message, 'error');
+    }
+
+    try {
+      const pos = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
+      document.getElementById('s-pos').textContent = pos.length;
+    } catch { document.getElementById('s-pos').textContent = 0; }
+  })();
 </script>
 </body>
 </html>

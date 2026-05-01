@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders &amp; PO — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Orders &amp; PO Management</h1>
+        <div class="subtitle">Import Amazon stocking POs → auto-generate DHG purchase orders</div>
+      </div>
+    </div>
+
+    <!-- ============ STEP 1: Import Amazon PO ============ -->
+    <section class="section">
+      <h2>1. Import Amazon Stocking PO</h2>
+      <div class="card">
+        <div class="upload-zone" id="po-zone" style="margin-bottom:14px">
+          <div class="uz-icon">▤</div>
+          <div class="uz-label">Drop Amazon Stocking PO Excel</div>
+          <div class="uz-hint">.xlsx — PO codes col C, ship-to col E, item col Q, qty col R</div>
+          <input type="file" id="po-input" accept=".xlsx,.xls" hidden>
+        </div>
+        <div id="import-summary" class="muted tiny"></div>
+      </div>
+    </section>
+
+    <!-- ============ STEP 2: Generated DHG POs ============ -->
+    <section class="section" id="dhg-section" style="display:none">
+      <h2>2. Generated DHG Purchase Orders</h2>
+      <div id="po-cards"></div>
+    </section>
+
+    <!-- ============ STEP 3: PO History ============ -->
+    <section class="section">
+      <h2>3. PO History</h2>
+      <div class="card">
+        <div class="flex-between mb-12">
+          <div class="muted tiny">Saved POs are stored in this browser. Phase 3 will sync to Supabase.</div>
+          <button class="btn btn-ghost" id="btn-clear-history">Clear all</button>
+        </div>
+        <div id="history"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('orders');
+
+  const state = {
+    items: [],         // parsed items
+    skuMapping: null,
+    pos: []            // grouped POs from current import
+  };
+
+  loadSkuMapping(true).then(d => state.skuMapping = d);
+
+  setupDragDrop(
+    document.getElementById('po-zone'),
+    document.getElementById('po-input'),
+    onPOFile
+  );
+
+  document.getElementById('btn-clear-history').addEventListener('click', () => {
+    if (!confirm('Clear all saved PO history?')) return;
+    localStorage.removeItem('tlaps_pos');
+    renderHistory();
+    toast('History cleared', 'success');
+  });
+
+  renderHistory();
+
+  /* ============ PARSE ============ */
+  async function onPOFile(file) {
+    markZoneFilled(document.getElementById('po-zone'), file);
+    try {
+      state.items = await parseStockingPOExcel(file);
+      if (!state.items.length) throw new Error('No PO line items found.');
+
+      state.pos = groupByPO(state.items);
+      renderPOs();
+
+      document.getElementById('import-summary').innerHTML =
+        `Parsed <strong>${state.items.length}</strong> line items across <strong>${state.pos.length}</strong> PO${state.pos.length === 1 ? '' : 's'}.`;
+      document.getElementById('dhg-section').style.display = '';
+    } catch (e) {
+      toast('Import failed: ' + e.message, 'error');
+    }
+  }
+
+  function groupByPO(items) {
+    const map = {};
+    for (const it of items) {
+      if (!map[it.po_code]) map[it.po_code] = { po_code: it.po_code, ship_to: it.ship_to, items: [] };
+      map[it.po_code].items.push(it);
+    }
+    return Object.values(map);
+  }
+
+  /* ============ RENDER PO CARDS ============ */
+  function renderPOs() {
+    const root = document.getElementById('po-cards');
+    root.innerHTML = state.pos.map((po, idx) => {
+      const tlapsItems = po.items.filter(i => isTlapsSku(i.item_name));
+      const otherItems = po.items.filter(i => !isTlapsSku(i.item_name));
+
+      const lines = [...tlapsItems, ...otherItems].map(i => {
+        const dhg = lookupDhgSku(i.item_name, state.skuMapping);
+        const product = lookupProduct(i.item_name, state.skuMapping);
+        const tlaps = isTlapsSku(i.item_name);
+        const cost = product && product.dhg_cost ? product.dhg_cost * i.quantity : null;
+        return {
+          i3: i.item_name,
+          dhg: dhg || '—',
+          desc: product ? product.description : '',
+          qty: i.quantity,
+          unit_cost: product ? product.dhg_cost : null,
+          line_cost: cost,
+          tlaps
+        };
+      });
+
+      const totalCost = lines.reduce((s, l) => s + (l.line_cost || 0), 0);
+      const allTlapsHaveCost = lines.filter(l => l.tlaps).every(l => l.unit_cost);
+
+      return `
+        <div class="card mb-12" style="margin-bottom:14px" data-po-idx="${idx}">
+          <div class="flex-between mb-12">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--green)">PO <span class="mono">${po.po_code}</span></div>
+              <div class="tiny mt-12">Ship to: <strong>${escapeHtml(po.ship_to || '—')}</strong> · ${po.items.length} line${po.items.length === 1 ? '' : 's'} · TLAPS ${tlapsItems.length} / Other ${otherItems.length}</div>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-ghost" data-action="download-xlsx">Download .xlsx</button>
+              <button class="btn btn-secondary" data-action="copy-email">Copy email body</button>
+              <button class="btn btn-primary" data-action="save">Save PO</button>
+            </div>
+          </div>
+          <table class="data-table compact">
+            <thead>
+              <tr><th>I3 SKU</th><th>DHG SKU</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Line Cost</th></tr>
+            </thead>
+            <tbody>
+              ${lines.map(l => `
+                <tr>
+                  <td class="mono">${escapeHtml(l.i3)}${l.tlaps ? '' : ' <span class="badge badge-non-tlaps">non-TLAPS</span>'}</td>
+                  <td class="mono">${escapeHtml(l.dhg)}</td>
+                  <td>${escapeHtml(l.desc)}</td>
+                  <td class="mono text-right">${l.qty}</td>
+                  <td class="mono text-right">${l.unit_cost ? money(l.unit_cost) : '<span class="cost-unconfirmed">—</span>'}</td>
+                  <td class="mono text-right">${l.line_cost ? money(l.line_cost) : '<span class="cost-unconfirmed">—</span>'}</td>
+                </tr>
+              `).join('')}
+              <tr style="font-weight:700;background:var(--green-pale)">
+                <td colspan="5" class="text-right">Total estimated DHG cost</td>
+                <td class="mono text-right">${money(totalCost)}${allTlapsHaveCost ? '' : ' <span class="tiny" style="color:var(--error)">(some unconfirmed)</span>'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+
+    // Wire buttons
+    root.querySelectorAll('[data-po-idx]').forEach(card => {
+      const idx = parseInt(card.dataset.poIdx);
+      card.querySelector('[data-action="download-xlsx"]').addEventListener('click', () => downloadDhgPO(state.pos[idx]));
+      card.querySelector('[data-action="copy-email"]').addEventListener('click', () => copyEmailBody(state.pos[idx]));
+      card.querySelector('[data-action="save"]').addEventListener('click', () => savePO(state.pos[idx]));
+    });
+  }
+
+  /* ============ DOWNLOAD .xlsx ============ */
+  function downloadDhgPO(po) {
+    const headers = ['DHG SKU', 'I3 SKU', 'Description', 'Qty', 'Unit Cost', 'Line Cost'];
+    const rows = po.items.map(i => {
+      const product = lookupProduct(i.item_name, state.skuMapping);
+      const dhg = lookupDhgSku(i.item_name, state.skuMapping) || '';
+      const unit = product ? product.dhg_cost : '';
+      return [dhg, i.item_name, product ? product.description : '', i.quantity, unit || '', unit ? unit * i.quantity : ''];
+    });
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['TLAPS DHG Purchase Order'],
+      ['PO Number', po.po_code],
+      ['Ship To',   po.ship_to || ''],
+      ['Date',      new Date().toISOString().slice(0, 10)],
+      [],
+      headers,
+      ...rows
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, 'PO');
+    XLSX.writeFile(wb, `DHG-PO-${po.po_code}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
+  /* ============ COPY EMAIL BODY ============ */
+  function copyEmailBody(po) {
+    const lines = po.items.map((i, n) => {
+      const dhg = lookupDhgSku(i.item_name, state.skuMapping) || '—';
+      const product = lookupProduct(i.item_name, state.skuMapping);
+      return `| ${n + 1} | ${dhg} | ${i.item_name} | ${product ? product.description : ''} | ${i.quantity} |`;
+    }).join('\n');
+    const body = [
+      `Subject: TLAPS PO - ${po.po_code} - ${po.ship_to || ''} - ${new Date().toISOString().slice(0,10)}`,
+      '',
+      'Hi Raymond,',
+      '',
+      'Please process the following order:',
+      '',
+      `PO Number: ${po.po_code}`,
+      `Ship To: ${po.ship_to || ''}`,
+      '',
+      'Items:',
+      '| # | DHG SKU | I3 SKU | Description | Qty |',
+      '|---|---------|--------|-------------|-----|',
+      lines,
+      '',
+      'Labels are attached separately.',
+      '',
+      'Thank you,',
+      'Ricky Tsui',
+      'I3 Enterprise / TLAPS'
+    ].join('\n');
+    copyToClipboard(body);
+  }
+
+  /* ============ SAVE TO HISTORY ============ */
+  function savePO(po) {
+    const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
+    const product = (i) => lookupProduct(i.item_name, state.skuMapping);
+    const lines = po.items.map(i => ({
+      i3: i.item_name,
+      dhg: lookupDhgSku(i.item_name, state.skuMapping),
+      qty: i.quantity,
+      unit_cost: product(i) ? product(i).dhg_cost : null
+    }));
+    list.unshift({
+      id: 'po_' + Date.now(),
+      po_code: po.po_code,
+      ship_to: po.ship_to || '',
+      lines,
+      total_cost: lines.reduce((s, l) => s + (l.unit_cost ? l.unit_cost * l.qty : 0), 0),
+      status: 'DRAFT',
+      saved_at: new Date().toISOString()
+    });
+    localStorage.setItem('tlaps_pos', JSON.stringify(list));
+    toast('PO saved to history', 'success');
+    renderHistory();
+  }
+
+  /* ============ HISTORY ============ */
+  function renderHistory() {
+    const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
+    const root = document.getElementById('history');
+    if (!list.length) {
+      root.innerHTML = '<div class="muted tiny">No saved POs yet.</div>';
+      return;
+    }
+    root.innerHTML = `
+      <table class="data-table compact">
+        <thead>
+          <tr><th>Saved</th><th>PO #</th><th>Ship-To</th><th>Lines</th><th>Cost</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${list.map(po => `
+            <tr>
+              <td class="mono tiny">${po.saved_at.slice(0, 16).replace('T', ' ')}</td>
+              <td class="mono">${escapeHtml(po.po_code)}</td>
+              <td>${escapeHtml(po.ship_to || '—')}</td>
+              <td class="mono text-right">${po.lines.length}</td>
+              <td class="mono text-right">${money(po.total_cost)}</td>
+              <td>
+                <select data-po-id="${po.id}" data-status onchange="window._poStatusChange(this)" class="form-input" style="padding:3px 6px;font-size:11px;width:120px">
+                  ${['DRAFT','SENT','CONFIRMED','SHIPPED','RECEIVED'].map(s =>
+                    `<option ${s === po.status ? 'selected' : ''}>${s}</option>`
+                  ).join('')}
+                </select>
+              </td>
+              <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="window._poDelete('${po.id}')">Delete</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  window._poStatusChange = (sel) => {
+    const id = sel.dataset.poId;
+    const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
+    const po = list.find(p => p.id === id);
+    if (!po) return;
+    po.status = sel.value;
+    localStorage.setItem('tlaps_pos', JSON.stringify(list));
+    toast(`PO ${po.po_code} → ${po.status}`, 'success');
+  };
+  window._poDelete = (id) => {
+    if (!confirm('Delete this PO from history?')) return;
+    const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]').filter(p => p.id !== id);
+    localStorage.setItem('tlaps_pos', JSON.stringify(list));
+    renderHistory();
+    toast('PO deleted', 'success');
+  };
+</script>
+</body>
+</html>

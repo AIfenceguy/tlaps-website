@@ -1,96 +1,471 @@
 {
-  "version": "2026.04",
-  "updated": "2026-04-29",
+  "version": "2026.04.30",
+  "updated": "2026-04-30",
   "products": [
     {
       "i3_sku": "TLAPS-TRAY-FT-25",
       "dhg_sku": "ft-25",
       "asin": "B0GXF61RVS",
-      "upc": "",
-      "category": "FOOD_TRAY",
+      "upc": "304828796085",
       "description": "Paper Food Trays 1000ct",
-      "map_price": ""
+      "category": "FOOD_TRAY",
+      "vendor_code": "I3ENT",
+      "map_price": 36.65,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "TLAPS Paper Food Trays 1000 Count - Red White Checkered 0.25 LB Disposable Food Boats, Grease Resistant, Bulk Nacho Trays for Concessions",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/food_trays.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": true
+      },
+      "notes": ""
     },
     {
       "i3_sku": "TLAPS-8796009",
       "dhg_sku": "PP9PR",
       "asin": "B0GWSBXR43",
-      "upc": "",
-      "category": "PLATE",
+      "upc": "304828796009",
       "description": "Paper Plates 9\" 125ct",
-      "map_price": ""
+      "category": "PLATE",
+      "vendor_code": "I3ENT",
+      "map_price": 17.44,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "TLAPS 9-Inch Coated Paper Plates 125 Count - Heavy Duty Disposable White Plates, Grease Resistant, Bulk Paper Plates for Parties, BBQ, Everyday Meals",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/paper_plates.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_eligible"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": true
+      },
+      "notes": "A+ content blocked by Amazon (not eligible for this category)"
     },
     {
       "i3_sku": "TLAPS-PIZZA-10PIZBR4C",
       "dhg_sku": "10PIZBR4C",
       "asin": "B0GXFGM36Q",
-      "upc": "",
-      "category": "PIZZA_BOX",
+      "upc": "304828796092",
       "description": "Pizza Boxes 10\" 50ct",
-      "map_price": ""
+      "category": "PIZZA_BOX",
+      "vendor_code": "I3ENT",
+      "map_price": 47.10,
+      "amazon_selling_price": 60.39,
+      "dhg_cost": 10.66,
+      "dhg_cost_confirmed": true,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/pizza_boxes.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "DHG cost $10.66 confirmed. Amazon currently selling at $60.39."
     },
     {
       "i3_sku": "TLAPS-CONT-10-F4LBOP",
       "dhg_sku": "10-F4LBOP+FDLOPS4LB",
       "asin": "B0GXF6FZNK",
-      "upc": "",
-      "category": "CONTAINER",
+      "upc": "304828796047",
       "description": "Foil Pans 4LB 10 sets",
-      "map_price": ""
+      "category": "CONTAINER",
+      "vendor_code": "I3ENT",
+      "map_price": 21.78,
+      "amazon_selling_price": null,
+      "dhg_cost": 4.50,
+      "dhg_cost_confirmed": true,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/foil_pans_4lb.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "regenerated_pending_upload",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "DHG cost $4.50 confirmed by Raymond. Video regenerated, awaiting upload."
     },
     {
       "i3_sku": "TLAPS-FOIL-FOIL23",
       "dhg_sku": "FOIL23",
       "asin": "B0GXF88MSN",
-      "upc": "",
-      "category": "FOIL_TRAY",
+      "upc": "304828796030",
       "description": "3-Comp Foil Trays 20 sets",
-      "map_price": ""
+      "category": "FOIL_TRAY",
+      "vendor_code": "I3ENT",
+      "map_price": 18.69,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/foil_trays_3comp.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": ""
     },
     {
       "i3_sku": "TLAPS-PLTS-B108W-P",
       "dhg_sku": "B108W-P",
       "asin": "B0GXFCF1BT",
-      "upc": "",
-      "category": "PLATE",
+      "upc": "304828796054",
       "description": "Sugarcane Plates 10x8\" 125ct",
-      "map_price": ""
+      "category": "PLATE",
+      "vendor_code": "I3ENT",
+      "map_price": 26.28,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/sugarcane_plates.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "Eco/compostable angle — leverage PFAS-free, biodegradable in keywords."
     },
     {
       "i3_sku": "TLAPS-FOIL-1PM-1212POPS",
       "dhg_sku": "1PM-1212POPS",
       "asin": "B0GXFCWCWQ",
-      "upc": "",
-      "category": "FOIL_SHEET",
+      "upc": "304828796023",
       "description": "Foil Sheets 12x12\" 500ct",
-      "map_price": ""
+      "category": "FOIL_SHEET",
+      "vendor_code": "I3ENT",
+      "map_price": 43.39,
+      "amazon_selling_price": 43.39,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/foil_sheets_12x12.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "Salon/beauty cross-market opportunity — title needs Hair Foils, Salons, Highlights keywords."
     },
     {
       "i3_sku": "TLAPS-FOIL-500-9POPS",
       "dhg_sku": "500-9pops",
       "asin": "B0GXF7VGTS",
-      "upc": "",
-      "category": "FOIL_SHEET",
+      "upc": "304828796016",
       "description": "Foil Sheets 9x10.75\" 500ct",
-      "map_price": ""
+      "category": "FOIL_SHEET",
+      "vendor_code": "I3ENT",
+      "map_price": 29.99,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/foil_sheets_9x10_75.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "Title needs salon/beauty keywords (hair foils, highlights, balayage)."
     },
     {
       "i3_sku": "TLAPS-STRW-500-PM-S7WT245",
       "dhg_sku": "500-PM-S7WT245",
       "asin": "B0GXF4JMW4",
-      "upc": "",
-      "category": "STRAW",
+      "upc": "304828796078",
       "description": "Wrapped Straws 7.75\" 500ct",
-      "map_price": ""
+      "category": "STRAW",
+      "vendor_code": "I3ENT",
+      "map_price": 12.99,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/straws.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": ""
     },
     {
       "i3_sku": "TLAPS-FOIL-PM-12POPS",
       "dhg_sku": "PM-12POPS",
       "asin": "B0GXFHGM59",
-      "upc": "",
-      "category": "FOIL_SHEET",
+      "upc": "304828796061",
       "description": "Foil Sheets 12x10.75\" 500ct",
-      "map_price": ""
+      "category": "FOIL_SHEET",
+      "vendor_code": "I3ENT",
+      "map_price": 36.99,
+      "amazon_selling_price": null,
+      "dhg_cost": null,
+      "dhg_cost_confirmed": false,
+      "coop_rate": 0.22,
+      "listing": {
+        "title": "",
+        "bullet_1": "",
+        "bullet_2": "",
+        "bullet_3": "",
+        "bullet_4": "",
+        "bullet_5": "",
+        "backend_keywords": "",
+        "product_description": ""
+      },
+      "media": {
+        "main_image": "../images/foil_sheets_12x10_75.jpg",
+        "gallery": [],
+        "video": "",
+        "video_status": "uploaded",
+        "aplus_html": "",
+        "aplus_status": "not_started"
+      },
+      "metrics": {
+        "bsr_rank": null,
+        "bsr_category": "",
+        "reviews_count": 0,
+        "rating": null,
+        "monthly_sales_est": null
+      },
+      "status": {
+        "listing_live": true,
+        "images_uploaded": true,
+        "backend_keywords_done": false,
+        "title_optimized": false
+      },
+      "notes": "URGENT: Amazon listing title says \"9x10.75\" but actual size is 12x10.75 — needs correction. Also needs salon/beauty keywords."
     }
-  ]
+  ],
+  "keyword_suggestions": {
+    "food_service": ["restaurants", "catering", "commercial kitchen", "bulk", "food truck", "concessions", "deli", "BBQ", "everyday meals", "parties"],
+    "salon_beauty": ["hair foils", "highlights", "balayage", "salon", "beauty supply", "professional stylist", "color processing"],
+    "eco": ["compostable", "biodegradable", "eco-friendly", "PFAS-free", "sustainable", "plant-based", "tree-free"]
+  }
 }

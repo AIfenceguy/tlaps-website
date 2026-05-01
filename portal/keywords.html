@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keywords — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Keywords &amp; Search Terms</h1>
+        <div class="subtitle">Listing titles, backend search terms, keyword bank for cross-market angles</div>
+      </div>
+    </div>
+
+    <!-- Suggestion bank -->
+    <div class="section">
+      <h2>Keyword Suggestion Bank</h2>
+      <div class="kw-grid" id="kw-bank"></div>
+    </div>
+
+    <!-- Titles -->
+    <div class="section">
+      <h2>Listing Titles</h2>
+      <div id="titles-list"></div>
+    </div>
+
+    <!-- Backend keywords -->
+    <div class="section">
+      <h2>Backend Search Terms (per product)</h2>
+      <div id="backend-list"></div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('keywords');
+
+  (async () => {
+    try {
+      const data = await loadSkuMapping(true);
+      const products = data.products;
+
+      // Suggestion bank
+      const suggestions = data.keyword_suggestions || {};
+      const bankRoot = document.getElementById('kw-bank');
+      bankRoot.innerHTML = Object.keys(suggestions).map(group => `
+        <div class="kw-block">
+          <h4>${group.replace(/_/g, ' / ').replace(/\b\w/g, c => c.toUpperCase())}</h4>
+          <div class="meta">${suggestions[group].length} terms</div>
+          <div class="tag-list">
+            ${suggestions[group].map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      // Titles
+      document.getElementById('titles-list').innerHTML = products.map(p => `
+        <div class="kw-block mb-12" style="margin-bottom:14px">
+          <div class="flex-between mb-12">
+            <h4>${escapeHtml(p.description)}</h4>
+            <div class="tiny mono">${escapeHtml(p.asin)} · ${p.status && p.status.title_optimized ? '<span style="color:var(--done)">optimized</span>' : '<span style="color:var(--pending)">needs review</span>'}</div>
+          </div>
+          <textarea class="form-input" data-asin="${p.asin}" data-field="listing.title" rows="3">${escapeHtml((p.listing && p.listing.title) || '')}</textarea>
+          <div class="flex-between mt-12">
+            <span class="tiny">${(p.listing && p.listing.title || '').length} chars</span>
+            <div>
+              <button class="btn btn-ghost" data-action="copy" data-target="title-${p.asin}">Copy</button>
+              <button class="btn btn-primary" data-action="save" data-asin="${p.asin}" data-field="listing.title">Save</button>
+            </div>
+          </div>
+          ${p.notes && /title/i.test(p.notes)
+            ? `<div class="notes-banner ${/urgent/i.test(p.notes) ? 'urgent' : ''}" style="margin-top:10px"><strong>Note:</strong> ${escapeHtml(p.notes)}</div>`
+            : ''}
+        </div>
+      `).join('');
+
+      // Backend keywords
+      document.getElementById('backend-list').innerHTML = products.map(p => `
+        <div class="kw-block mb-12" style="margin-bottom:14px">
+          <div class="flex-between mb-12">
+            <h4>${escapeHtml(p.description)}</h4>
+            <div class="tiny mono">${escapeHtml(p.asin)}</div>
+          </div>
+          <textarea class="form-input" data-asin="${p.asin}" data-field="listing.backend_keywords" rows="3" placeholder="Up to ~250 bytes; space-separated">${escapeHtml((p.listing && p.listing.backend_keywords) || '')}</textarea>
+          <div class="flex-between mt-12">
+            <span class="tiny" data-len="${p.asin}">${(p.listing && p.listing.backend_keywords || '').length} chars</span>
+            <div>
+              <button class="btn btn-ghost" data-action="copy-bk" data-asin="${p.asin}">Copy</button>
+              <button class="btn btn-primary" data-action="save" data-asin="${p.asin}" data-field="listing.backend_keywords">Save</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Wire save buttons (titles + backend)
+      document.querySelectorAll('[data-action="save"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const asin = btn.dataset.asin;
+          const field = btn.dataset.field;
+          const ta = document.querySelector(`textarea[data-asin="${asin}"][data-field="${field}"]`);
+          if (!ta) return;
+          saveOverride(asin, field, ta.value);
+          toast('Saved', 'success');
+        });
+      });
+
+      // Wire copy buttons
+      document.querySelectorAll('[data-action="copy"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.target.replace('title-', '');
+          const ta = document.querySelector(`textarea[data-asin="${target}"][data-field="listing.title"]`);
+          if (ta) copyToClipboard(ta.value);
+        });
+      });
+      document.querySelectorAll('[data-action="copy-bk"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const asin = btn.dataset.asin;
+          const ta = document.querySelector(`textarea[data-asin="${asin}"][data-field="listing.backend_keywords"]`);
+          if (ta) copyToClipboard(ta.value);
+        });
+      });
+
+      // Live char counter for backend
+      document.querySelectorAll('textarea[data-field="listing.backend_keywords"]').forEach(ta => {
+        ta.addEventListener('input', () => {
+          const len = ta.value.length;
+          const counter = document.querySelector(`[data-len="${ta.dataset.asin}"]`);
+          if (counter) {
+            counter.textContent = len + ' chars';
+            counter.style.color = len > 250 ? 'var(--error)' : '';
+          }
+        });
+      });
+    } catch (e) {
+      toast('Failed to load: ' + e.message, 'error');
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Detail — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1 id="page-title">Product Detail</h1>
+        <div class="subtitle"><a href="products.html">← All products</a></div>
+      </div>
+      <div class="muted" id="page-meta"></div>
+    </div>
+
+    <div id="content"><div class="card text-center muted">Loading product…</div></div>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('products');
+
+  const params = new URLSearchParams(location.search);
+  const asin = params.get('asin');
+
+  if (!asin) {
+    document.getElementById('content').innerHTML =
+      `<div class="card" style="color:var(--error)">No ASIN specified. <a href="products.html">Back to products</a>.</div>`;
+  } else {
+    loadProduct(asin);
+  }
+
+  async function loadProduct(asin) {
+    try {
+      const data = await loadSkuMapping(true);
+      const p = getProductByAsin(asin, data);
+      if (!p) throw new Error('Product not found for ASIN ' + asin);
+
+      document.getElementById('page-title').textContent = p.description || asin;
+      document.getElementById('page-meta').innerHTML =
+        `<span class="mono">${p.i3_sku}</span>`;
+
+      render(p);
+    } catch (e) {
+      document.getElementById('content').innerHTML =
+        `<div class="card" style="color:var(--error)">${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  function render(p) {
+    const c = computeCosts(p);
+    const root = document.getElementById('content');
+
+    const notesHtml = p.notes
+      ? `<div class="notes-banner ${/urgent/i.test(p.notes) ? 'urgent' : ''}"><strong>Note:</strong> ${escapeHtml(p.notes)}</div>`
+      : '';
+
+    root.innerHTML = `
+      <!-- Header -->
+      <div class="product-header">
+        <div class="ph-image">
+          ${p.media && p.media.main_image
+            ? `<img src="${escapeHtml(p.media.main_image)}" alt="${escapeHtml(p.description)}">`
+            : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:11px">No image</div>'}
+        </div>
+        <div class="ph-info">
+          <div class="ph-name">${escapeHtml(p.description)}</div>
+          <div class="ph-meta">
+            <div>I3 SKU: <strong>${escapeHtml(p.i3_sku)}</strong></div>
+            <div>DHG SKU: <strong>${escapeHtml(p.dhg_sku)}</strong></div>
+            <div>ASIN: <strong>${escapeHtml(p.asin)}</strong></div>
+            <div>UPC: <strong>${escapeHtml(p.upc || '—')}</strong></div>
+            <div>Vendor: <strong>${escapeHtml(p.vendor_code || 'I3ENT')}</strong></div>
+          </div>
+        </div>
+        <div class="ph-actions">
+          <a class="btn btn-ghost" href="https://www.amazon.com/dp/${p.asin}" target="_blank" rel="noopener">View on Amazon</a>
+        </div>
+      </div>
+
+      ${notesHtml}
+
+      <!-- Tabs -->
+      <div id="tabs">
+        <div class="tab-nav">
+          <button class="tab-btn" data-tab="listing">Listing Content</button>
+          <button class="tab-btn" data-tab="media">Media</button>
+          <button class="tab-btn" data-tab="pricing">Pricing &amp; Costs</button>
+          <button class="tab-btn" data-tab="performance">Performance</button>
+          <button class="tab-btn" data-tab="status">Status</button>
+        </div>
+
+        <!-- LISTING -->
+        <div data-tab-panel="listing">
+          ${listingPanel(p)}
+        </div>
+
+        <!-- MEDIA -->
+        <div data-tab-panel="media">
+          ${mediaPanel(p)}
+        </div>
+
+        <!-- PRICING -->
+        <div data-tab-panel="pricing">
+          ${pricingPanel(p, c)}
+        </div>
+
+        <!-- PERFORMANCE -->
+        <div data-tab-panel="performance">
+          ${performancePanel(p)}
+        </div>
+
+        <!-- STATUS -->
+        <div data-tab-panel="status">
+          ${statusPanel(p)}
+        </div>
+      </div>
+    `;
+
+    initTabs('#tabs');
+    wireListing(p);
+    wirePricing(p);
+    wirePerformance(p);
+    wireStatus(p);
+  }
+
+  /* ============ LISTING PANEL ============ */
+  function listingPanel(p) {
+    const L = p.listing || {};
+    const field = (key, label, rows) => `
+      <div class="field-row">
+        <div class="field-label">
+          <span>${label}</span>
+          <span class="copy-link" data-copy="listing.${key}">Copy</span>
+        </div>
+        <textarea class="form-input" data-listing="${key}" rows="${rows || 2}">${escapeHtml(L[key] || '')}</textarea>
+      </div>
+    `;
+    return `
+      <div class="card">
+        ${field('title', 'Title', 3)}
+        ${field('bullet_1', 'Bullet 1', 2)}
+        ${field('bullet_2', 'Bullet 2', 2)}
+        ${field('bullet_3', 'Bullet 3', 2)}
+        ${field('bullet_4', 'Bullet 4', 2)}
+        ${field('bullet_5', 'Bullet 5', 2)}
+        ${field('backend_keywords', 'Backend Search Terms (max 250 bytes)', 3)}
+        ${field('product_description', 'Product Description', 5)}
+        <div class="flex-between mt-12">
+          <span class="tiny" id="listing-status">Loaded.</span>
+          <div>
+            <button class="btn btn-ghost" id="btn-listing-reset">Reset to JSON</button>
+            <button class="btn btn-primary" id="btn-listing-save">Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  function wireListing(p) {
+    const root = document.querySelector('[data-tab-panel="listing"]');
+    if (!root) return;
+    root.querySelectorAll('[data-copy]').forEach(el => {
+      el.addEventListener('click', () => {
+        const path = el.dataset.copy;
+        const ta = root.querySelector(`[data-listing="${path.split('.')[1]}"]`);
+        copyToClipboard(ta ? ta.value : '');
+      });
+    });
+    document.getElementById('btn-listing-save').addEventListener('click', () => {
+      const updates = {};
+      root.querySelectorAll('[data-listing]').forEach(ta => {
+        updates['listing.' + ta.dataset.listing] = ta.value;
+      });
+      saveOverrides(p.asin, updates);
+      document.getElementById('listing-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      toast('Listing saved', 'success');
+    });
+    document.getElementById('btn-listing-reset').addEventListener('click', () => {
+      if (!confirm('Discard your local edits for this product? This clears all overrides on this ASIN.')) return;
+      clearProductOverrides(p.asin);
+      location.reload();
+    });
+  }
+
+  /* ============ MEDIA PANEL ============ */
+  function mediaPanel(p) {
+    const M = p.media || {};
+    const galleryEmpty = !(M.gallery && M.gallery.length);
+    return `
+      <div class="card">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Main Image</h3>
+        ${M.main_image
+          ? `<div style="max-width:320px;border:1px solid var(--border);border-radius:5px;overflow:hidden">
+               <img src="${escapeHtml(M.main_image)}" alt="" style="width:100%;display:block">
+             </div>
+             <div class="tiny mt-12">${escapeHtml(M.main_image)}</div>`
+          : '<div class="muted">No main image set.</div>'}
+      </div>
+
+      <div class="card mt-20" style="margin-top:18px">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Gallery</h3>
+        <div class="gallery-grid">
+          ${galleryEmpty
+            ? Array(6).fill(0).map(() => '<div class="gallery-item empty">empty</div>').join('')
+            : M.gallery.map(src =>
+                `<div class="gallery-item"><img src="${escapeHtml(src)}" alt=""></div>`
+              ).join('')}
+        </div>
+        <div class="tiny mt-12">Gallery upload UI ships in Phase 3 (will write to repo + Supabase).</div>
+      </div>
+
+      <div class="card mt-20" style="margin-top:18px">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Video</h3>
+        <div class="flex-between mb-12">
+          <div>${videoBadge(M.video_status)}</div>
+          <div class="tiny mono">${escapeHtml(M.video || '(not in repo)')}</div>
+        </div>
+        ${M.video
+          ? `<video controls style="max-width:100%;border-radius:5px"><source src="${escapeHtml(M.video)}"></video>`
+          : '<div class="muted tiny">No local video file. Track upload status only.</div>'}
+      </div>
+
+      <div class="card mt-20" style="margin-top:18px">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">A+ Content</h3>
+        <div class="mb-12">${aplusBadge(M.aplus_status)}</div>
+        ${M.aplus_html
+          ? `<iframe srcdoc="${escapeHtml(M.aplus_html)}" style="width:100%;height:480px;border:1px solid var(--border);border-radius:5px"></iframe>`
+          : '<div class="muted tiny">No A+ HTML stored. Paste your A+ module HTML into the JSON or future editor.</div>'}
+      </div>
+    `;
+  }
+
+  /* ============ PRICING PANEL ============ */
+  function pricingPanel(p, c) {
+    return `
+      <div class="card">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:14px">Inputs</h3>
+        <div class="pricing-grid">
+          <div class="kpi">
+            <div class="label">MAP Price</div>
+            <div class="value">$<input type="number" step="0.01" class="calc-input" id="in-map" value="${p.map_price ?? ''}" style="width:100%;font-size:18px;font-weight:700;border:none;background:transparent;color:var(--text)"></div>
+          </div>
+          <div class="kpi">
+            <div class="label">Amazon Selling</div>
+            <div class="value">$<input type="number" step="0.01" class="calc-input" id="in-asp" value="${p.amazon_selling_price ?? ''}" style="width:100%;font-size:18px;font-weight:700;border:none;background:transparent;color:var(--text)"></div>
+          </div>
+          <div class="kpi ${p.dhg_cost_confirmed ? '' : 'unconfirmed'}">
+            <div class="label">DHG Cost ${p.dhg_cost_confirmed ? '(confirmed)' : '(NOT confirmed)'}</div>
+            <div class="value">$<input type="number" step="0.01" class="calc-input" id="in-dhg" value="${p.dhg_cost ?? ''}" style="width:100%;font-size:18px;font-weight:700;border:none;background:transparent;color:var(--text)"></div>
+          </div>
+          <div class="kpi">
+            <div class="label">Coop Rate</div>
+            <div class="value">${(p.coop_rate * 100).toFixed(0)}%</div>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="in-confirmed" ${p.dhg_cost_confirmed ? 'checked' : ''} style="accent-color:var(--green);width:16px;height:16px">
+          DHG cost confirmed by Raymond
+        </label>
+      </div>
+
+      <div class="card mt-20" style="margin-top:18px">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:14px">Calculated Per-Unit P&amp;L</h3>
+        <div class="pricing-grid" id="calc-grid">
+          <div class="kpi"><div class="label">Col E (MAP × 0.78)</div><div class="value" id="o-cole">${c.fmt.colE}</div></div>
+          <div class="kpi"><div class="label">Coop Fee</div><div class="value" id="o-coop">${c.fmt.coopFee}</div></div>
+          <div class="kpi green"><div class="label">Net to I3</div><div class="value" id="o-net">${c.fmt.net}</div></div>
+          <div class="kpi"><div class="label">Profit / Unit</div><div class="value" id="o-profit">${c.fmt.profit}</div></div>
+          <div class="kpi gold"><div class="label">Margin</div><div class="value" id="o-margin">${c.fmt.marginPct}</div></div>
+        </div>
+        <div class="tiny mt-12">Net = MAP × 0.78 × (1 − coop). Margin = Profit / Net.</div>
+      </div>
+
+      <div class="flex-between mt-20">
+        <span class="tiny" id="pricing-status">Loaded.</span>
+        <div>
+          <button class="btn btn-ghost" id="btn-pricing-reset">Reset to JSON</button>
+          <button class="btn btn-primary" id="btn-pricing-save">Save</button>
+        </div>
+      </div>
+    `;
+  }
+  function wirePricing(p) {
+    const root = document.querySelector('[data-tab-panel="pricing"]');
+    if (!root) return;
+
+    const inputs = {
+      map: document.getElementById('in-map'),
+      asp: document.getElementById('in-asp'),
+      dhg: document.getElementById('in-dhg'),
+      confirmed: document.getElementById('in-confirmed')
+    };
+
+    function recompute() {
+      const draft = {
+        map_price: parseFloat(inputs.map.value) || 0,
+        amazon_selling_price: parseFloat(inputs.asp.value) || null,
+        dhg_cost: parseFloat(inputs.dhg.value) || 0,
+        coop_rate: p.coop_rate
+      };
+      const c = computeCosts(draft);
+      document.getElementById('o-cole').textContent   = c.fmt.colE;
+      document.getElementById('o-coop').textContent   = c.fmt.coopFee;
+      document.getElementById('o-net').textContent    = c.fmt.net;
+      document.getElementById('o-profit').textContent = c.fmt.profit;
+      document.getElementById('o-margin').textContent = c.fmt.marginPct;
+    }
+    [inputs.map, inputs.asp, inputs.dhg].forEach(el => el.addEventListener('input', recompute));
+
+    document.getElementById('btn-pricing-save').addEventListener('click', () => {
+      saveOverrides(p.asin, {
+        'map_price': parseFloat(inputs.map.value) || 0,
+        'amazon_selling_price': inputs.asp.value === '' ? null : parseFloat(inputs.asp.value),
+        'dhg_cost': inputs.dhg.value === '' ? null : parseFloat(inputs.dhg.value),
+        'dhg_cost_confirmed': inputs.confirmed.checked
+      });
+      document.getElementById('pricing-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      toast('Pricing saved', 'success');
+    });
+
+    document.getElementById('btn-pricing-reset').addEventListener('click', () => {
+      if (!confirm('Discard your local edits for this product?')) return;
+      clearProductOverrides(p.asin);
+      location.reload();
+    });
+  }
+
+  /* ============ PERFORMANCE PANEL ============ */
+  function performancePanel(p) {
+    const m = p.metrics || {};
+    return `
+      <div class="card">
+        <div class="pricing-grid">
+          <div class="kpi"><div class="label">BSR Rank</div><div class="value">${m.bsr_rank ?? '—'}</div></div>
+          <div class="kpi"><div class="label">BSR Category</div><div class="value" style="font-size:13px">${escapeHtml(m.bsr_category || '—')}</div></div>
+          <div class="kpi"><div class="label">Reviews</div><div class="value">${m.reviews_count ?? 0}</div></div>
+          <div class="kpi"><div class="label">Rating</div><div class="value">${m.rating != null ? m.rating + ' ★' : '—'}</div></div>
+          <div class="kpi"><div class="label">Monthly Sales (est.)</div><div class="value">${m.monthly_sales_est ?? '—'}</div></div>
+        </div>
+        <div class="tiny mt-12">
+          Edit fields below to record what you see in Vendor Central.
+        </div>
+        <div class="pricing-grid mt-12" style="margin-top:14px">
+          <div class="field-row"><div class="field-label">BSR Rank</div><input class="form-input" type="number" id="m-bsr" value="${m.bsr_rank ?? ''}"></div>
+          <div class="field-row"><div class="field-label">BSR Category</div><input class="form-input" type="text" id="m-cat" value="${escapeHtml(m.bsr_category || '')}"></div>
+          <div class="field-row"><div class="field-label">Reviews</div><input class="form-input" type="number" id="m-rev" value="${m.reviews_count ?? ''}"></div>
+          <div class="field-row"><div class="field-label">Rating</div><input class="form-input" type="number" step="0.1" id="m-rat" value="${m.rating ?? ''}"></div>
+          <div class="field-row"><div class="field-label">Monthly Sales (est.)</div><input class="form-input" type="number" id="m-sales" value="${m.monthly_sales_est ?? ''}"></div>
+        </div>
+        <div class="flex-between mt-20">
+          <span class="tiny" id="perf-status">Loaded.</span>
+          <button class="btn btn-primary" id="btn-perf-save">Save Metrics</button>
+        </div>
+      </div>
+    `;
+  }
+  function wirePerformance(p) {
+    const btn = document.getElementById('btn-perf-save');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      saveOverrides(p.asin, {
+        'metrics.bsr_rank':         parseInt(document.getElementById('m-bsr').value) || null,
+        'metrics.bsr_category':     document.getElementById('m-cat').value,
+        'metrics.reviews_count':    parseInt(document.getElementById('m-rev').value) || 0,
+        'metrics.rating':           parseFloat(document.getElementById('m-rat').value) || null,
+        'metrics.monthly_sales_est': parseInt(document.getElementById('m-sales').value) || null
+      });
+      document.getElementById('perf-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      toast('Metrics saved', 'success');
+    });
+  }
+
+  /* ============ STATUS PANEL ============ */
+  function statusPanel(p) {
+    const s = p.status || {};
+    const m = p.media || {};
+    const checklist = [
+      { key: 'status.listing_live',           label: 'Listing live on Amazon',         val: !!s.listing_live },
+      { key: 'status.images_uploaded',        label: 'All images uploaded',            val: !!s.images_uploaded },
+      { key: 'status.title_optimized',        label: 'Title optimized',                val: !!s.title_optimized },
+      { key: 'status.backend_keywords_done',  label: 'Backend keywords optimized',     val: !!s.backend_keywords_done },
+      { key: 'media.video_status',            label: 'Video uploaded',                 val: m.video_status === 'uploaded', isVideo: true },
+      { key: 'media.aplus_status',            label: 'A+ content submitted',           val: m.aplus_status === 'submitted' || m.aplus_status === 'live', isAplus: true },
+      { key: 'dhg_cost_confirmed',            label: 'DHG cost confirmed by Raymond',  val: !!p.dhg_cost_confirmed }
+    ];
+
+    return `
+      <div class="card">
+        <ul class="checklist">
+          ${checklist.map(item => `
+            <li>
+              <label>
+                <input type="checkbox" ${item.val ? 'checked' : ''} data-status-key="${item.key}" ${item.isVideo || item.isAplus ? 'disabled' : ''}>
+                <span>${item.label}</span>
+              </label>
+              ${item.isVideo ? videoBadge(m.video_status) : ''}
+              ${item.isAplus ? aplusBadge(m.aplus_status) : ''}
+            </li>
+          `).join('')}
+        </ul>
+        <div class="tiny mt-12">Video and A+ states are managed on the Media tab — checkboxes here are read-only.</div>
+        <div class="flex-between mt-20">
+          <span class="tiny" id="status-status">Loaded.</span>
+          <button class="btn btn-primary" id="btn-status-save">Save Checklist</button>
+        </div>
+      </div>
+    `;
+  }
+  function wireStatus(p) {
+    const btn = document.getElementById('btn-status-save');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const updates = {};
+      document.querySelectorAll('[data-status-key]').forEach(cb => {
+        if (cb.disabled) return;
+        updates[cb.dataset.statusKey] = cb.checked;
+      });
+      saveOverrides(p.asin, updates);
+      document.getElementById('status-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      toast('Status saved', 'success');
+    });
+  }
+</script>
+</body>
+</html>
