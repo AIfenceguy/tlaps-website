@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Processor — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+
+<!-- pdf.js (Mozilla) — render PDF pages to canvas + extract text -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- SheetJS (xlsx) — parse Amazon stocking PO Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- jsPDF — combine stamped pages into a single 4×6 PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Label Processor</h1>
+        <div class="subtitle">Upload PO Excel + label PDF → auto-stamp TLAPS labels with I3 / DHG SKUs</div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step active" id="step-1"><span class="num">1</span>Upload files</div>
+      <div class="step"        id="step-2"><span class="num">2</span>Review assignment</div>
+      <div class="step"        id="step-3"><span class="num">3</span>Process &amp; download</div>
+    </div>
+
+    <!-- ============ STEP 1: UPLOAD ============ -->
+    <section class="section" id="upload-section">
+      <h2>Upload Files</h2>
+      <div class="card-grid">
+        <div>
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:700;margin-bottom:8px">PO Excel</div>
+          <div class="upload-zone" id="po-zone">
+            <div class="uz-icon">▤</div>
+            <div class="uz-label">Drop Amazon Stocking PO Excel</div>
+            <div class="uz-hint">.xlsx — PO codes, ship-to FCs, line items</div>
+            <input type="file" id="po-input" accept=".xlsx,.xls" hidden>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:700;margin-bottom:8px">Label PDF</div>
+          <div class="upload-zone" id="pdf-zone">
+            <div class="uz-icon">⬚</div>
+            <div class="uz-label">Drop shipping label PDF</div>
+            <div class="uz-hint">4×6 from Vendor Central</div>
+            <input type="file" id="pdf-input" accept=".pdf" hidden>
+          </div>
+        </div>
+      </div>
+      <div class="flex-between mt-20">
+        <div class="muted" style="font-size:12px">All processing happens in your browser — files never leave your machine.</div>
+        <button class="btn btn-primary" id="btn-analyze" disabled>Analyze →</button>
+      </div>
+    </section>
+
+    <!-- ============ STEP 2: PREVIEW ============ -->
+    <section class="section" id="preview-section" style="display:none">
+      <h2>Label Assignment Preview</h2>
+      <div id="preview-summary" class="muted mb-12" style="font-size:13px"></div>
+      <div id="preview-content"></div>
+      <div class="flex-between mt-20">
+        <button class="btn btn-ghost" id="btn-back">← Back</button>
+        <button class="btn btn-primary" id="btn-process">Process Labels →</button>
+      </div>
+    </section>
+
+    <!-- ============ STEP 3: PROCESSING ============ -->
+    <section class="section" id="process-section" style="display:none">
+      <h2>Processing</h2>
+      <div class="card">
+        <div class="flex-between mb-12">
+          <strong id="process-status">Initializing…</strong>
+          <span class="muted" style="font-size:12px" id="process-counter"></span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div id="process-log" style="margin-top:14px;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:var(--text-muted);max-height:240px;overflow-y:auto;background:#fafbfa;padding:10px;border-radius:4px;border:1px solid var(--border);line-height:1.5"></div>
+      </div>
+
+      <div id="download-section" style="display:none;margin-top:18px">
+        <div class="card" style="background:#f0fdf4;border-color:var(--done)">
+          <h3 style="color:var(--done);margin-bottom:8px;font-size:16px">✓ Labels Ready</h3>
+          <p style="margin-bottom:14px;font-size:13px">
+            Print at <strong>4×6 paper · 100% scale · no margins · portrait</strong>.
+          </p>
+          <button class="btn btn-primary" id="btn-download">Download Stamped PDF</button>
+          <button class="btn btn-ghost" id="btn-restart" style="margin-left:8px">Process another batch</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('labels');
+
+  // pdf.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ============ STATE ============
+  const state = {
+    poFile: null,
+    pdfFile: null,
+    poItems: [],         // [{po_code, ship_to, item_name, quantity, row}]
+    pdfDoc: null,        // pdf.js PDFDocumentProxy
+    pageInfo: [],        // [{page, po_code}]
+    assignments: [],     // [{page, po_code, item_name, i3_sku, dhg_sku, isTlaps}]
+    outputBlob: null,
+    skuMapping: null
+  };
+
+  loadSkuMapping()
+    .then(d => state.skuMapping = d)
+    .catch(e => toast('Failed to load SKU mapping: ' + e.message, 'error'));
+
+  // ============ UPLOAD ZONES ============
+  setupDragDrop(
+    document.getElementById('po-zone'),
+    document.getElementById('po-input'),
+    (file) => {
+      state.poFile = file;
+      markZoneFilled(document.getElementById('po-zone'), file);
+      checkReady();
+    }
+  );
+  setupDragDrop(
+    document.getElementById('pdf-zone'),
+    document.getElementById('pdf-input'),
+    (file) => {
+      state.pdfFile = file;
+      markZoneFilled(document.getElementById('pdf-zone'), file);
+      checkReady();
+    }
+  );
+
+  function checkReady() {
+    document.getElementById('btn-analyze').disabled = !(state.poFile && state.pdfFile);
+  }
+
+  // ============ STEP CONTROL ============
+  function setStep(n) {
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step-' + i);
+      el.classList.remove('active', 'done');
+      if (i < n) el.classList.add('done');
+      else if (i === n) el.classList.add('active');
+    }
+  }
+
+  // ============ ANALYZE ============
+  document.getElementById('btn-analyze').addEventListener('click', analyze);
+
+  async function analyze() {
+    const btn = document.getElementById('btn-analyze');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing…';
+
+    try {
+      // 1) Parse PO Excel
+      state.poItems = await parsePOExcel(state.poFile);
+      if (!state.poItems.length) {
+        throw new Error('No line items found in PO Excel. Check column layout (po_code col C, item col Q, qty col R).');
+      }
+
+      // 2) Load PDF + extract PO numbers per page
+      const buf = await state.pdfFile.arrayBuffer();
+      state.pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+
+      state.pageInfo = [];
+      for (let i = 1; i <= state.pdfDoc.numPages; i++) {
+        const page = await state.pdfDoc.getPage(i);
+        const tc = await page.getTextContent();
+        const text = tc.items.map(t => t.str).join(' ');
+        state.pageInfo.push({ page: i, po_code: extractPONumber(text) });
+      }
+
+      // 3) Compute label assignments
+      state.assignments = computeAssignments(state.pageInfo, state.poItems, state.skuMapping);
+
+      // 4) Render preview
+      renderPreview();
+
+      // 5) Show step 2
+      document.getElementById('upload-section').style.display = 'none';
+      document.getElementById('preview-section').style.display = '';
+      setStep(2);
+    } catch (e) {
+      toast('Analysis failed: ' + e.message, 'error');
+      console.error(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Analyze →';
+    }
+  }
+
+  // ============ PARSE EXCEL ============
+  function parsePOExcel(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = (e) => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+          // Column mapping per spec:
+          //   po_code   = col[2]   (Excel col C)
+          //   ship_to   = col[4]   (Excel col E)
+          //   item_name = col[16]  (Excel col Q)
+          //   quantity  = col[17]  (Excel col R)
+          const items = [];
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row) continue;
+            const poRaw = row[2];
+            if (!poRaw) continue;
+            const po = String(poRaw).trim();
+            // Filter header / junk rows — PO codes are 6–16 alphanumeric
+            if (!/^[A-Z0-9]{6,16}$/i.test(po)) continue;
+
+            const itemName = String(row[16] || '').trim();
+            const qty = parseInt(row[17], 10);
+            if (!itemName || !qty || qty <= 0) continue;
+
+            items.push({
+              po_code: po.toUpperCase(),
+              ship_to: String(row[4] || '').trim(),
+              item_name: itemName,
+              quantity: qty,
+              row: i
+            });
+          }
+          resolve(items);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      r.onerror = () => reject(new Error('Could not read Excel file'));
+      r.readAsArrayBuffer(file);
+    });
+  }
+
+  // ============ PO NUMBER EXTRACTION ============
+  function extractPONumber(text) {
+    // Try common Amazon label patterns
+    const candidates = [
+      /PO\s*#\s*([A-Z0-9]{6,12})/i,
+      /PO\s*[:\-]\s*([A-Z0-9]{6,12})/i,
+      /Purchase\s*Order\s*[#:\-]?\s*([A-Z0-9]{6,12})/i,
+      /\bPO\s+([A-Z0-9]{6,12})\b/i
+    ];
+    for (const re of candidates) {
+      const m = text.match(re);
+      if (m) return m[1].toUpperCase();
+    }
+    return null;
+  }
+
+  // ============ ASSIGNMENT LOGIC ============
+  // Pages within a PO are assigned to items in this order:
+  //   TLAPS items first (in PO Excel row order), then non-TLAPS.
+  // Non-TLAPS labels are pass-through (no stamp).
+  // Overflow pages (more pages than total qty) are also pass-through.
+  function computeAssignments(pageInfo, poItems, mapping) {
+    // Group PDF pages by PO code
+    const pagesByPo = {};
+    for (const p of pageInfo) {
+      const key = p.po_code || 'UNKNOWN';
+      (pagesByPo[key] = pagesByPo[key] || []).push(p.page);
+    }
+
+    // Group Excel items by PO code
+    const itemsByPo = {};
+    for (const it of poItems) {
+      (itemsByPo[it.po_code] = itemsByPo[it.po_code] || []).push(it);
+    }
+
+    // Sort items within each PO: TLAPS first (by row order), non-TLAPS last
+    Object.keys(itemsByPo).forEach(po => {
+      itemsByPo[po].sort((a, b) => {
+        const aT = isTlapsSku(a.item_name);
+        const bT = isTlapsSku(b.item_name);
+        if (aT !== bT) return aT ? -1 : 1;
+        return a.row - b.row;
+      });
+    });
+
+    const assignments = [];
+    Object.keys(pagesByPo).forEach(po => {
+      const pages = pagesByPo[po];
+      const items = itemsByPo[po] || [];
+      let pageIdx = 0;
+
+      for (const item of items) {
+        for (let i = 0; i < item.quantity && pageIdx < pages.length; i++) {
+          const tlaps = isTlapsSku(item.item_name);
+          const dhg = lookupDhgSku(item.item_name, mapping);
+          assignments.push({
+            page: pages[pageIdx++],
+            po_code: po,
+            item_name: item.item_name,
+            i3_sku: tlaps ? item.item_name : null,
+            dhg_sku: dhg,
+            isTlaps: tlaps && !!dhg
+          });
+        }
+      }
+      // Overflow pages = pass-through
+      while (pageIdx < pages.length) {
+        assignments.push({
+          page: pages[pageIdx++],
+          po_code: po,
+          item_name: '(unassigned)',
+          i3_sku: null,
+          dhg_sku: null,
+          isTlaps: false
+        });
+      }
+    });
+
+    assignments.sort((a, b) => a.page - b.page);
+    return assignments;
+  }
+
+  // ============ PREVIEW ============
+  function renderPreview() {
+    const total = state.assignments.length;
+    const stamped = state.assignments.filter(a => a.isTlaps).length;
+    const passThrough = total - stamped;
+
+    document.getElementById('preview-summary').innerHTML =
+      `<strong>${total}</strong> labels · <strong>${stamped}</strong> stamped · <strong>${passThrough}</strong> pass-through`;
+
+    // Group by PO
+    const groups = {};
+    for (const a of state.assignments) {
+      (groups[a.po_code] = groups[a.po_code] || []).push(a);
+    }
+
+    let html = '';
+    for (const po of Object.keys(groups)) {
+      const items = groups[po];
+
+      // Compress consecutive same-item runs
+      const runs = [];
+      let cur = null;
+      for (const a of items) {
+        if (cur && cur.item_name === a.item_name && a.isTlaps === cur.isTlaps && a.page === cur.lastPage + 1) {
+          cur.lastPage = a.page;
+          cur.count++;
+        } else {
+          cur = {
+            item_name: a.item_name,
+            i3_sku: a.i3_sku,
+            dhg_sku: a.dhg_sku,
+            isTlaps: a.isTlaps,
+            firstPage: a.page,
+            lastPage: a.page,
+            count: 1
+          };
+          runs.push(cur);
+        }
+      }
+
+      const poLabel = po === 'UNKNOWN'
+        ? `<span style="color:var(--error)">PO not detected</span>`
+        : `<span class="mono">${po}</span>`;
+
+      html += `
+        <div class="card mb-12" style="margin-bottom:14px">
+          <div class="flex-between mb-12">
+            <h3 style="font-size:14px;color:var(--green);font-weight:700">PO ${poLabel}</h3>
+            <span class="muted" style="font-size:12px">${items.length} labels · pages ${items[0].page}–${items[items.length-1].page}</span>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:120px">Pages</th>
+                <th>I3 SKU</th>
+                <th>DHG SKU</th>
+                <th style="width:130px">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${runs.map(r => `
+                <tr>
+                  <td class="mono">
+                    ${r.firstPage === r.lastPage ? r.firstPage : (r.firstPage + '–' + r.lastPage)}
+                    <span class="muted">(${r.count})</span>
+                  </td>
+                  <td class="mono">${r.i3_sku || '<span class="muted">' + escapeHtml(r.item_name) + '</span>'}</td>
+                  <td class="mono">${r.dhg_sku || '<span class="muted">—</span>'}</td>
+                  <td>${
+                    r.isTlaps
+                      ? '<span class="badge badge-tlaps">Stamp</span>'
+                      : '<span class="badge badge-non-tlaps">Pass-through</span>'
+                  }</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    document.getElementById('preview-content').innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+  }
+
+  // ============ NAV ============
+  document.getElementById('btn-back').addEventListener('click', () => {
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('upload-section').style.display = '';
+    setStep(1);
+  });
+
+  document.getElementById('btn-restart').addEventListener('click', () => location.reload());
+
+  // ============ PROCESS ============
+  document.getElementById('btn-process').addEventListener('click', processLabels);
+
+  async function processLabels() {
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('process-section').style.display = '';
+    setStep(3);
+
+    const log = (msg) => {
+      const el = document.getElementById('process-log');
+      el.innerHTML += msg + '<br>';
+      el.scrollTop = el.scrollHeight;
+    };
+    const setProgress = (n) => document.getElementById('progress-bar').style.width = n + '%';
+    const setStatus = (s) => document.getElementById('process-status').textContent = s;
+    const setCounter = (s) => document.getElementById('process-counter').textContent = s;
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const out = new jsPDF({ orientation: 'portrait', unit: 'in', format: [4, 6] });
+
+      const total = state.pdfDoc.numPages;
+      log(`Processing ${total} page${total === 1 ? '' : 's'}…`);
+
+      for (let pageNum = 1; pageNum <= total; pageNum++) {
+        setStatus(`Rendering page ${pageNum} of ${total}`);
+        setCounter(`${pageNum} / ${total}`);
+        setProgress(((pageNum - 1) / total) * 100);
+
+        const page = await state.pdfDoc.getPage(pageNum);
+        const baseVp = page.getViewport({ scale: 1 });
+
+        // Render at 4×6 @ 300 DPI (1200 × 1800 px) regardless of source size
+        const targetWidth = 1200;
+        const scale = targetWidth / baseVp.width;
+        const vp = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+        const a = state.assignments.find(x => x.page === pageNum);
+        if (a && a.isTlaps && a.i3_sku && a.dhg_sku) {
+          drawStamp(ctx, canvas.width, canvas.height, a.i3_sku, a.dhg_sku);
+          log(`  p.${pageNum}  STAMP   ${a.i3_sku}  |  ${a.dhg_sku}`);
+        } else {
+          const why = a ? (a.po_code === 'UNKNOWN' ? 'no PO' : 'non-TLAPS') : 'no assignment';
+          log(`  p.${pageNum}  PASS    (${why})`);
+        }
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        if (pageNum > 1) out.addPage([4, 6], 'portrait');
+        out.addImage(imgData, 'JPEG', 0, 0, 4, 6);
+
+        // Yield to UI
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      setProgress(100);
+      setStatus('Complete');
+      setCounter(`${total} / ${total}`);
+      log(`<strong style="color:var(--green)">Done. Click Download.</strong>`);
+
+      state.outputBlob = out.output('blob');
+      document.getElementById('download-section').style.display = '';
+    } catch (e) {
+      setStatus('Error');
+      log(`<span style="color:var(--error)">ERROR: ${escapeHtml(e.message)}</span>`);
+      toast('Processing failed: ' + e.message, 'error');
+      console.error(e);
+    }
+  }
+
+  // ============ STAMP ============
+  function drawStamp(ctx, w, h, i3, dhg) {
+    // Bar height + font scale proportional to canvas height
+    // (spec: 55px bar / 38px font on 1200×1800 canvas)
+    const barH = Math.round(55 * (h / 1800));
+    const fontSize = Math.round(38 * (h / 1800));
+
+    // White bar overwrites any existing stamp at the bottom
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, h - barH, w, barH);
+
+    // Top border line
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = Math.max(2, Math.round(h / 900));
+    ctx.beginPath();
+    ctx.moveTo(0, h - barH);
+    ctx.lineTo(w, h - barH);
+    ctx.stroke();
+
+    // Centered text
+    ctx.fillStyle = '#000';
+    ctx.font = `bold ${fontSize}px -apple-system, "Segoe UI", Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${i3}  |  ${dhg}`, w / 2, h - barH / 2);
+  }
+
+  // ============ DOWNLOAD ============
+  document.getElementById('btn-download').addEventListener('click', () => {
+    if (!state.outputBlob) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(state.outputBlob);
+    a.download = `tlaps-labels-stamped-${stamp}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 1000);
+  });
+</script>
+</body>
+</html>

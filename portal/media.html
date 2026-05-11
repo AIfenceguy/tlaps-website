@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Library — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Media Library</h1>
+        <div class="subtitle">Main images, video status, A+ content — single view of all listing assets</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Products</h2>
+      <div id="grid" class="card-grid"></div>
+    </div>
+
+    <div class="section">
+      <h2>Video Status Tracker</h2>
+      <div class="table-wrap">
+        <table class="data-table compact">
+          <thead>
+            <tr><th>Product</th><th>ASIN</th><th>Video Status</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="video-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>A+ Content Status</h2>
+      <div class="table-wrap">
+        <table class="data-table compact">
+          <thead>
+            <tr><th>Product</th><th>ASIN</th><th>A+ Status</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="aplus-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('media');
+
+  (async () => {
+    try {
+      const data = await loadSkuMapping(true);
+      const products = data.products;
+
+      // Grid
+      document.getElementById('grid').innerHTML = products.map(p => {
+        const m = p.media || {};
+        return `
+          <a class="media-card" href="product-detail.html?asin=${p.asin}">
+            <div class="thumb">${m.main_image
+              ? `<img src="${escapeHtml(m.main_image)}" alt="">`
+              : ''}</div>
+            <div class="meta">
+              <h4>${escapeHtml(p.description)}</h4>
+              <div class="tiny mb-12 mono">${escapeHtml(p.asin)}</div>
+              <div class="badges">
+                <span class="tiny" style="margin-right:4px">Vid:</span>${videoBadge(m.video_status)}
+                <span class="tiny" style="margin-left:8px;margin-right:4px">A+:</span>${aplusBadge(m.aplus_status)}
+              </div>
+            </div>
+          </a>
+        `;
+      }).join('');
+
+      // Video tracker
+      document.getElementById('video-body').innerHTML = products.map(p => {
+        const note = videoNote(p.media && p.media.video_status, p.notes);
+        return `
+          <tr>
+            <td>${escapeHtml(p.description)}</td>
+            <td class="mono">${escapeHtml(p.asin)}</td>
+            <td>${videoBadge(p.media && p.media.video_status)}</td>
+            <td class="tiny">${escapeHtml(note)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // A+ tracker
+      document.getElementById('aplus-body').innerHTML = products.map(p => {
+        const note = aplusNote(p.media && p.media.aplus_status, p.notes);
+        return `
+          <tr>
+            <td>${escapeHtml(p.description)}</td>
+            <td class="mono">${escapeHtml(p.asin)}</td>
+            <td>${aplusBadge(p.media && p.media.aplus_status)}</td>
+            <td class="tiny">${escapeHtml(note)}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      toast('Failed to load media: ' + e.message, 'error');
+    }
+  })();
+
+  function videoNote(status, productNote) {
+    const noteMatch = productNote && /video/i.test(productNote) ? productNote : '';
+    if (status === 'regenerated_pending_upload') return 'Video regenerated, needs upload to Vendor Central';
+    if (status === 'needs_redo')                 return 'Re-record required';
+    if (noteMatch)                                return noteMatch;
+    return '';
+  }
+  function aplusNote(status, productNote) {
+    if (status === 'not_eligible')  return 'Amazon flagged this category as A+ ineligible';
+    if (status === 'blocked')       return 'Submission blocked by Amazon — review notes';
+    if (status === 'submitted')     return 'Submitted, awaiting Amazon approval';
+    if (status === 'live')          return 'Live on listing';
+    if (productNote && /a\+/i.test(productNote)) return productNote;
+    return '';
+  }
+</script>
+</body>
+</html>
