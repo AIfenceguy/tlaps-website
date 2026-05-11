@@ -3,10 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Costs &amp; Margins — TLAPS Operations</title>
+<title>Margin & VC Cost — TLAPS Operations</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="../images/favicon.ico">
 <link rel="stylesheet" href="assets/portal.css">
+<style>
+  .margin-cell { font-weight: 700; }
+  .margin-green  { color: #15803d; }
+  .margin-yellow { color: #a16207; }
+  .margin-red    { color: #b91c1c; }
+  .margin-na     { color: var(--text-muted); font-style: italic; }
+  .badge-confirmed { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .badge-estimate  { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .badge-missing   { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .ml-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10px; font-weight: 600; }
+  .cost-input { width: 90px; text-align: right; font-family: monospace; }
+  .cost-input.changed { background: #fef3c7; border-color: #fcd34d; }
+  .floor-tag { font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px; }
+  .floor-warning { color: #b91c1c; font-weight: 600; }
+</style>
 </head>
 <body>
 <div class="portal-layout">
@@ -15,74 +30,65 @@
   <main class="main">
     <div class="main-header">
       <div>
-        <h1>Costs &amp; Margins</h1>
-        <div class="subtitle">Live P&amp;L per unit · edit DHG cost inline · changes saved to overrides</div>
+        <h1>Margin & VC Cost</h1>
+        <div class="subtitle">Live margin per SKU from tlaps-prod · edit VC Cost / I3 Cost inline · auto-saves to Supabase</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
       </div>
     </div>
 
     <!-- Formula card -->
-    <div class="section">
+    <section class="section">
       <div class="card" style="background:#eff6ff;border-color:#bfdbfe">
         <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#1e3a8a">
-          <div><strong>Col E</strong> = MAP × 0.78</div>
-          <div><strong>Coop Fee</strong> = Col E × 22%</div>
-          <div><strong>Net to I3</strong> = Col E − Coop Fee</div>
-          <div><strong>Profit</strong> = Net − DHG Cost</div>
-          <div><strong>Margin</strong> = Profit / Net</div>
+          <div><strong>Net to I3</strong> = VC Cost &times; 0.78</div>
+          <div><strong>Margin %</strong> = (Net &minus; effective I3 Cost) / Net &times; 100</div>
+          <div><strong>VC Floor</strong> = effective I3 Cost / 0.78  <span class="tiny">(min VC price before margin negative)</span></div>
+          <div><strong>Effective I3 Cost</strong> = i3_cost (confirmed) OR col_e (estimate = MAP &times; 0.30)</div>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- Roll-up -->
-    <div class="section">
+    <section class="section">
       <div class="stat-grid">
-        <div class="stat-card"><div class="label">Confirmed Costs</div><div class="value" id="r-conf">—</div><div class="delta" id="r-conf-d">of 10</div></div>
-        <div class="stat-card"><div class="label">Avg Margin (confirmed)</div><div class="value" id="r-margin">—</div><div class="delta">profit / net</div></div>
-        <div class="stat-card"><div class="label">Avg Profit / Unit</div><div class="value" id="r-profit">—</div><div class="delta">across confirmed</div></div>
-        <div class="stat-card"><div class="label">Total Net Revenue</div><div class="value" id="r-net">—</div><div class="delta">if 1 unit each</div></div>
+        <div class="stat-card"><div class="label">Confirmed Costs</div><div class="value" id="r-conf">&mdash;</div><div class="delta" id="r-conf-d">of 12</div></div>
+        <div class="stat-card"><div class="label">Avg Margin</div><div class="value" id="r-margin">&mdash;</div><div class="delta">across all 12</div></div>
+        <div class="stat-card"><div class="label">Thinnest Margin</div><div class="value" id="r-thin">&mdash;</div><div class="delta" id="r-thin-d">&mdash;</div></div>
+        <div class="stat-card"><div class="label">Estimates Pending</div><div class="value" id="r-est">&mdash;</div><div class="delta">await Raymond</div></div>
       </div>
-    </div>
+    </section>
 
     <!-- Master table -->
-    <div class="section">
-      <h2>Per-SKU P&amp;L</h2>
-      <div class="table-wrap">
-        <table class="data-table compact">
+    <section class="section">
+      <h2>Per-SKU Margin</h2>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table class="data-table compact" style="min-width:1100px">
           <thead>
             <tr>
-              <th>Product</th>
               <th>I3 SKU</th>
-              <th>MAP</th>
-              <th>Col E</th>
-              <th>Coop</th>
-              <th>Net</th>
-              <th style="width:120px">DHG Cost</th>
-              <th>Profit</th>
-              <th>Margin</th>
-              <th>✓</th>
+              <th class="text-right">MAP</th>
+              <th class="text-right" style="width:110px">VC Cost</th>
+              <th class="text-right" style="width:110px">I3 Cost</th>
+              <th class="text-right">Col E <span class="tiny">(legacy est)</span></th>
+              <th class="text-right">Eff. I3</th>
+              <th class="text-right">Net to I3</th>
+              <th class="text-right">Margin %</th>
+              <th class="text-right">VC Floor</th>
+              <th>Status</th>
+              <th class="text-center">Conf.</th>
             </tr>
           </thead>
-          <tbody id="cost-body">
-            <tr><td colspan="10" class="text-center muted" style="padding:30px">Loading…</td></tr>
+          <tbody id="margin-body">
+            <tr><td colspan="11" class="text-center muted" style="padding:30px">Loading from tlaps-prod&hellip;</td></tr>
           </tbody>
         </table>
       </div>
       <div class="tiny mt-12">
-        Edit DHG Cost or check the ✓ to mark confirmed. Saves on blur.
-        Profit, margin, and roll-ups update live.
+        Edit VC Cost or I3 Cost &rarr; press Tab or click away to save. Generated columns (Net, Margin, Floor) recompute server-side and refresh automatically. Color-coded margin: <span class="margin-red">&lt;40%</span> &middot; <span class="margin-yellow">40&ndash;60%</span> &middot; <span class="margin-green">&gt;60%</span>.
       </div>
-    </div>
-
-    <!-- Confirmed status legend -->
-    <div class="section">
-      <div class="card">
-        <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px">
-          <div><span class="dot green"></span>Confirmed by Raymond</div>
-          <div><span class="dot amber"></span>Provisional (entered, not confirmed)</div>
-          <div><span class="dot red"></span>Missing — request from Raymond</div>
-        </div>
-      </div>
-    </div>
+    </section>
   </main>
 </div>
 
@@ -91,90 +97,153 @@
   requireAuth();
   renderSidebar('costs');
 
-  let products = [];
+  const state = { rows: [] };
 
-  (async () => {
+  document.getElementById('btn-refresh').addEventListener('click', () => load(true));
+  load(false);
+
+  async function load(force) {
     try {
-      const data = await loadSkuMapping(true);
-      products = data.products;
-      renderTable();
-      renderRollup();
+      const rows = await sbGet(
+        'products?select=tlaps_sku,map_price,vc_cost,i3_cost,col_e,cost_confirmed,net_to_i3_vc,margin_pct_vc,vc_cost_floor,vc_cost_updated_at,i3_cost_updated_at&tlaps_sku=like.TLAPS-*&order=margin_pct_vc.asc.nullslast'
+      );
+      state.rows = rows;
+      render();
+      rollup();
     } catch (e) {
+      console.error(e);
       toast('Failed to load: ' + e.message, 'error');
+      document.getElementById('margin-body').innerHTML =
+        '<tr><td colspan="11" class="text-center" style="color:var(--error);padding:30px">Failed to load tlaps-prod data. Check console.</td></tr>';
     }
-  })();
+  }
 
-  function renderTable() {
-    const body = document.getElementById('cost-body');
-    body.innerHTML = products.map(p => {
-      const c = computeCosts(p);
-      const dot = !p.dhg_cost
-        ? '<span class="dot red"></span>'
-        : (p.dhg_cost_confirmed ? '<span class="dot green"></span>' : '<span class="dot amber"></span>');
-      return `
-        <tr data-asin="${p.asin}">
-          <td>${escapeHtml(p.description)}</td>
-          <td class="mono tiny">${escapeHtml(p.i3_sku)}</td>
-          <td class="mono text-right">${c.fmt.map}</td>
-          <td class="mono text-right">${c.fmt.colE}</td>
-          <td class="mono text-right">${c.fmt.coopFee}</td>
-          <td class="mono text-right" style="color:var(--green);font-weight:600">${c.fmt.net}</td>
-          <td>
-            ${dot}
-            <input type="number" step="0.01" class="calc-input" data-field="dhg_cost" value="${p.dhg_cost ?? ''}" placeholder="—" style="width:80px">
-          </td>
-          <td class="mono text-right ${p.dhg_cost ? (c.profit >= 0 ? 'profit-pos' : 'profit-neg') : ''}">${c.fmt.profit}</td>
-          <td class="mono text-right">${c.fmt.marginPct}</td>
-          <td class="text-center">
-            <input type="checkbox" data-field="dhg_cost_confirmed" ${p.dhg_cost_confirmed ? 'checked' : ''} style="accent-color:var(--green);width:16px;height:16px">
-          </td>
-        </tr>
-      `;
+  function marginClass(m) {
+    if (m == null) return 'margin-na';
+    if (m < 40) return 'margin-red';
+    if (m < 60) return 'margin-yellow';
+    return 'margin-green';
+  }
+
+  function statusBadge(r) {
+    if (r.i3_cost != null && r.cost_confirmed) return '<span class="ml-badge badge-confirmed">confirmed</span>';
+    if (r.col_e   != null)                      return '<span class="ml-badge badge-estimate">estimate (MAP&times;0.30)</span>';
+    return '<span class="ml-badge badge-missing">no cost</span>';
+  }
+
+  function fmt(v, p) { return v == null ? '&mdash;' : '$' + Number(v).toFixed(p == null ? 2 : p); }
+  function pct(v)   { return v == null ? '&mdash;' : Number(v).toFixed(2) + '%'; }
+
+  function render() {
+    const body = document.getElementById('margin-body');
+    body.innerHTML = state.rows.map(r => {
+      const eff = (r.i3_cost != null) ? r.i3_cost : r.col_e;
+      const mClass = marginClass(r.margin_pct_vc);
+      const floorWarn = (r.vc_cost != null && r.vc_cost_floor != null && Number(r.vc_cost) < Number(r.vc_cost_floor) * 1.10)
+        ? '<span class="floor-tag floor-warning">&#9888; near floor</span>' : '';
+      return ''
+        + '<tr data-sku="' + escapeHtml(r.tlaps_sku) + '">'
+        +   '<td class="mono">' + escapeHtml(r.tlaps_sku) + '</td>'
+        +   '<td class="mono text-right">' + fmt(r.map_price) + '</td>'
+        +   '<td class="text-right">'
+        +     '<input type="number" step="0.0001" min="0" class="form-input cost-input" data-field="vc_cost" value="' + (r.vc_cost ?? '') + '">'
+        +   '</td>'
+        +   '<td class="text-right">'
+        +     '<input type="number" step="0.0001" min="0" class="form-input cost-input" data-field="i3_cost" value="' + (r.i3_cost ?? '') + '" placeholder="(none)">'
+        +   '</td>'
+        +   '<td class="mono text-right">' + fmt(r.col_e) + '</td>'
+        +   '<td class="mono text-right">' + fmt(eff, 4) + '</td>'
+        +   '<td class="mono text-right">' + fmt(r.net_to_i3_vc) + '</td>'
+        +   '<td class="mono text-right margin-cell ' + mClass + '">' + pct(r.margin_pct_vc) + '</td>'
+        +   '<td class="mono text-right">' + fmt(r.vc_cost_floor) + floorWarn + '</td>'
+        +   '<td>' + statusBadge(r) + '</td>'
+        +   '<td class="text-center">'
+        +     '<input type="checkbox" data-field="cost_confirmed" ' + (r.cost_confirmed ? 'checked' : '') + ' style="accent-color:var(--green);width:16px;height:16px">'
+        +   '</td>'
+        + '</tr>';
     }).join('');
 
     body.querySelectorAll('tr').forEach(tr => {
-      const asin = tr.dataset.asin;
-      const dhgInput = tr.querySelector('[data-field="dhg_cost"]');
-      const confirmedCb = tr.querySelector('[data-field="dhg_cost_confirmed"]');
-
-      dhgInput.addEventListener('blur', () => {
-        const val = dhgInput.value === '' ? null : parseFloat(dhgInput.value);
-        saveOverride(asin, 'dhg_cost', val);
-        const product = products.find(p => p.asin === asin);
-        product.dhg_cost = val;
-        renderTable();
-        renderRollup();
-        toast('Saved DHG cost', 'success');
+      const sku = tr.dataset.sku;
+      tr.querySelectorAll('input[type="number"]').forEach(inp => {
+        const original = inp.value;
+        inp.addEventListener('input', () => inp.classList.toggle('changed', inp.value !== original));
+        inp.addEventListener('blur', () => {
+          if (inp.value === original) return;
+          saveField(sku, inp.dataset.field, inp.value);
+        });
       });
-      confirmedCb.addEventListener('change', () => {
-        saveOverride(asin, 'dhg_cost_confirmed', confirmedCb.checked);
-        const product = products.find(p => p.asin === asin);
-        product.dhg_cost_confirmed = confirmedCb.checked;
-        renderTable();
-        renderRollup();
-        toast(confirmedCb.checked ? 'Marked confirmed' : 'Unconfirmed', 'success');
+      tr.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+        saveField(sku, 'cost_confirmed', e.target.checked);
       });
     });
   }
 
-  function renderRollup() {
-    const conf = products.filter(p => p.dhg_cost && p.dhg_cost_confirmed);
-    const allWithCost = products.filter(p => p.dhg_cost);
-    document.getElementById('r-conf').textContent = conf.length;
-    document.getElementById('r-conf-d').textContent = `of ${products.length}` + (allWithCost.length > conf.length ? ` (${allWithCost.length - conf.length} provisional)` : '');
-
-    if (!conf.length) {
-      document.getElementById('r-margin').textContent = '—';
-      document.getElementById('r-profit').textContent = '—';
+  async function saveField(sku, field, value) {
+    const payload = {};
+    if (field === 'cost_confirmed') {
+      payload[field] = !!value;
+    } else if (value === '' || value === null) {
+      payload[field] = null;
     } else {
-      const margins = conf.map(p => computeCosts(p).marginPct);
-      const profits = conf.map(p => computeCosts(p).profit);
-      document.getElementById('r-margin').textContent = (margins.reduce((s, m) => s + m, 0) / margins.length).toFixed(1) + '%';
-      document.getElementById('r-profit').textContent = '$' + (profits.reduce((s, m) => s + m, 0) / profits.length).toFixed(2);
+      const n = parseFloat(value);
+      if (Number.isNaN(n)) { toast('Invalid number', 'error'); return; }
+      payload[field] = n;
+    }
+    // stamp the matching _updated_at
+    if (field === 'vc_cost') payload.vc_cost_updated_at = new Date().toISOString();
+    if (field === 'i3_cost') payload.i3_cost_updated_at = new Date().toISOString();
+
+    const url = SUPABASE_URL + '/rest/v1/products?tlaps_sku=eq.' + encodeURIComponent(sku);
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+      const updated = await res.json();
+      if (updated.length) {
+        const i = state.rows.findIndex(r => r.tlaps_sku === sku);
+        if (i >= 0) Object.assign(state.rows[i], updated[0]);
+      }
+      render();
+      rollup();
+      toast('Saved ' + sku + ' / ' + field, 'success');
+    } catch (e) {
+      console.error(e);
+      toast('Save failed: ' + e.message, 'error');
+    }
+  }
+
+  function rollup() {
+    const rows = state.rows;
+    if (!rows.length) return;
+    const conf = rows.filter(r => r.cost_confirmed);
+    const est  = rows.filter(r => !r.cost_confirmed);
+    document.getElementById('r-conf').textContent = conf.length;
+    document.getElementById('r-conf-d').textContent = 'of ' + rows.length;
+
+    const margins = rows.map(r => r.margin_pct_vc).filter(v => v != null).map(Number);
+    if (margins.length) {
+      const avg = margins.reduce((s, n) => s + n, 0) / margins.length;
+      document.getElementById('r-margin').textContent = avg.toFixed(1) + '%';
+    } else {
+      document.getElementById('r-margin').textContent = '—';
     }
 
-    const totalNet = products.reduce((s, p) => s + computeCosts(p).net, 0);
-    document.getElementById('r-net').textContent = '$' + totalNet.toFixed(2);
+    const thin = rows.filter(r => r.margin_pct_vc != null).sort((a, b) => Number(a.margin_pct_vc) - Number(b.margin_pct_vc))[0];
+    if (thin) {
+      const cls = marginClass(thin.margin_pct_vc);
+      document.getElementById('r-thin').innerHTML = '<span class="' + cls + '">' + Number(thin.margin_pct_vc).toFixed(1) + '%</span>';
+      document.getElementById('r-thin-d').textContent = thin.tlaps_sku;
+    }
+    document.getElementById('r-est').textContent = est.length;
   }
 </script>
 </body>

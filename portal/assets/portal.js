@@ -9,12 +9,22 @@ const AUTH_KEY        = 'tlaps_auth';
 const EMAIL_KEY       = 'tlaps_user_email';
 const OVERRIDES_KEY   = 'tlaps_overrides';
 const POS_KEY         = 'tlaps_pos';
+const BOX_CACHE_KEY   = 'tlaps_box_inventory_cache';
+
+/* ============ SUPABASE CLIENT (REST, no SDK) ============ */
+const SUPABASE_URL =
+  (typeof window !== 'undefined' && window.__SUPABASE_URL) ||
+  'https://poescwjdppbweqfdqcue.supabase.co';
+const SUPABASE_ANON_KEY =
+  (typeof window !== 'undefined' && window.__SUPABASE_ANON_KEY) ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvZXNjd2pkcHBid2VxZmRxY3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzM2MTUsImV4cCI6MjA5MTcwOTYxNX0.0Z7VH3xyj-Px8U4qe5-_EGvULnr-UVvrYBk3G6aJPNo';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',       icon: 'D', href: 'dashboard.html' },
   { id: 'products',  label: 'Products',         icon: 'P', href: 'products.html'  },
   { id: 'labels',    label: 'Labels',           icon: 'L', href: 'labels.html'    },
   { id: 'orders',    label: 'Orders',           icon: 'O', href: 'orders.html'    },
+  { id: 'pablo',     label: 'Receiving (Pablo)',icon: 'R', href: 'pablo.html'     },
   { id: 'costs',     label: 'Costs',            icon: '$', href: 'costs.html'     },
   { id: 'media',     label: 'Media',            icon: 'M', href: 'media.html'     },
   { id: 'keywords',  label: 'Keywords',         icon: 'K', href: 'keywords.html'  }
@@ -22,9 +32,7 @@ const NAV_ITEMS = [
 
 /* ============ AUTH ============ */
 
-function isAuthenticated() {
-  return sessionStorage.getItem(AUTH_KEY) === 'true';
-}
+function isAuthenticated() { return sessionStorage.getItem(AUTH_KEY) === 'true'; }
 function login(email, password) {
   if (password === PORTAL_PASSWORD) {
     sessionStorage.setItem(AUTH_KEY, 'true');
@@ -38,18 +46,14 @@ function logout() {
   sessionStorage.removeItem(EMAIL_KEY);
   window.location.href = 'index.html';
 }
-function requireAuth() {
-  if (!isAuthenticated()) window.location.href = 'index.html';
-}
+function requireAuth() { if (!isAuthenticated()) window.location.href = 'index.html'; }
 
 /* ============ SIDEBAR ============ */
 
 function renderSidebar(activeId) {
   const sidebar = document.querySelector('.sidebar');
   if (!sidebar) return;
-
   const userEmail = sessionStorage.getItem(EMAIL_KEY) || '';
-
   const itemsHtml = NAV_ITEMS.map(item => {
     const cls = [];
     if (item.id === activeId) cls.push('active');
@@ -57,50 +61,31 @@ function renderSidebar(activeId) {
     const onClick = item.disabled
       ? `onclick="event.preventDefault();toast('${item.label} module coming soon','warning');return false"`
       : '';
-    const soon = item.disabled
-      ? '<span class="coming-soon-badge">Soon</span>'
-      : '';
-    return `
-      <li class="${cls.join(' ')}">
-        <a href="${item.href}" ${onClick}>
-          <span class="icon">${item.icon}</span>
-          <span>${item.label}</span>
-          ${soon}
-        </a>
-      </li>
-    `;
+    const soon = item.disabled ? '<span class="coming-soon-badge">Soon</span>' : '';
+    return `<li class="${cls.join(' ')}"><a href="${item.href}" ${onClick}><span class="icon">${item.icon}</span><span>${item.label}</span>${soon}</a></li>`;
   }).join('');
-
   sidebar.innerHTML = `
     <div class="sidebar-brand">
       <img src="../images/tlaps_logo.png" alt="TLAPS">
-      <div>
-        <div class="name">TLAPS</div>
-        <div class="sub">Operations</div>
-      </div>
+      <div><div class="name">TLAPS</div><div class="sub">Operations</div></div>
     </div>
     <ul class="sidebar-nav">${itemsHtml}</ul>
     <div class="sidebar-footer">
       <div class="user-email">${userEmail || 'Signed in'}</div>
       <button class="btn-logout" onclick="logout()">Sign out</button>
-    </div>
-  `;
+    </div>`;
 }
 
 /* ============ TOAST ============ */
 
 function toast(msg, type) {
   type = type || 'info';
-  let container = document.querySelector('.toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'toast-container';
-    document.body.appendChild(container);
-  }
+  let c = document.querySelector('.toast-container');
+  if (!c) { c = document.createElement('div'); c.className = 'toast-container'; document.body.appendChild(c); }
   const el = document.createElement('div');
   el.className = 'toast ' + type;
   el.textContent = msg;
-  container.appendChild(el);
+  c.appendChild(el);
   setTimeout(() => {
     el.style.transition = 'opacity 0.3s, transform 0.3s';
     el.style.opacity = '0';
@@ -113,17 +98,11 @@ function toast(msg, type) {
 
 function setupDragDrop(zoneEl, fileInputEl, onFile) {
   zoneEl.addEventListener('click', () => fileInputEl.click());
-  fileInputEl.addEventListener('change', (e) => {
-    if (e.target.files && e.target.files[0]) onFile(e.target.files[0]);
-  });
-  zoneEl.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    zoneEl.classList.add('dragover');
-  });
+  fileInputEl.addEventListener('change', (e) => { if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); });
+  zoneEl.addEventListener('dragover', (e) => { e.preventDefault(); zoneEl.classList.add('dragover'); });
   zoneEl.addEventListener('dragleave', () => zoneEl.classList.remove('dragover'));
   zoneEl.addEventListener('drop', (e) => {
-    e.preventDefault();
-    zoneEl.classList.remove('dragover');
+    e.preventDefault(); zoneEl.classList.remove('dragover');
     if (e.dataTransfer.files && e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
   });
 }
@@ -150,19 +129,17 @@ async function loadSkuMapping(applyOverridesFlag) {
   _skuMappingCache = await res.json();
   return applyOverridesFlag ? applyOverridesAll(_skuMappingCache) : _skuMappingCache;
 }
-function isTlapsSku(sku) {
-  return typeof sku === 'string' && sku.trim().toUpperCase().startsWith('TLAPS-');
-}
+function isTlapsSku(sku) { return typeof sku === 'string' && sku.trim().toUpperCase().startsWith('TLAPS-'); }
 function lookupDhgSku(i3Sku, mapping) {
   if (!i3Sku || !mapping) return null;
-  const target = i3Sku.trim().toUpperCase();
-  const item = mapping.products.find(p => p.i3_sku.toUpperCase() === target);
-  return item ? item.dhg_sku : null;
+  const t = i3Sku.trim().toUpperCase();
+  const it = mapping.products.find(p => p.i3_sku.toUpperCase() === t);
+  return it ? it.dhg_sku : null;
 }
 function lookupProduct(i3Sku, mapping) {
   if (!i3Sku || !mapping) return null;
-  const target = i3Sku.trim().toUpperCase();
-  return mapping.products.find(p => p.i3_sku.toUpperCase() === target) || null;
+  const t = i3Sku.trim().toUpperCase();
+  return mapping.products.find(p => p.i3_sku.toUpperCase() === t) || null;
 }
 function getProductByAsin(asin, mapping) {
   if (!asin || !mapping) return null;
@@ -173,9 +150,7 @@ function getAllOverrides() {
   try { return JSON.parse(localStorage.getItem(OVERRIDES_KEY) || '{}'); }
   catch (e) { return {}; }
 }
-function getOverrides(asin) {
-  return getAllOverrides()[asin] || {};
-}
+function getOverrides(asin) { return getAllOverrides()[asin] || {}; }
 function saveOverride(asin, path, value) {
   const all = getAllOverrides();
   if (!all[asin]) all[asin] = {};
@@ -234,13 +209,10 @@ function computeCosts(product) {
   return {
     map, asp, colE, coopFee, net, dhg, profit, marginPct, coopRate, hasCost,
     fmt: {
-      map:       money(map),
-      asp:       asp ? money(asp) : '—',
-      colE:      money(colE),
-      coopFee:   money(coopFee),
-      net:       money(net),
-      dhg:       hasCost ? money(dhg) : '—',
-      profit:    hasCost ? (profit >= 0 ? '' : '-') + money(Math.abs(profit)) : '—',
+      map: money(map), asp: asp ? money(asp) : '—',
+      colE: money(colE), coopFee: money(coopFee), net: money(net),
+      dhg: hasCost ? money(dhg) : '—',
+      profit: hasCost ? (profit >= 0 ? '' : '-') + money(Math.abs(profit)) : '—',
       marginPct: hasCost ? marginPct.toFixed(1) + '%' : '—'
     }
   };
@@ -254,40 +226,33 @@ function money(n) {
 
 function badge(text, kind) {
   const map = {
-    pending: 'badge-pending',
-    processing: 'badge-processing',
-    done: 'badge-done',
-    error: 'badge-error',
-    tlaps: 'badge-tlaps',
-    neutral: 'badge-non-tlaps'
+    pending: 'badge-pending', processing: 'badge-processing',
+    done: 'badge-done', error: 'badge-error',
+    tlaps: 'badge-tlaps', neutral: 'badge-non-tlaps'
   };
   return `<span class="badge ${map[kind] || 'badge-non-tlaps'}">${text}</span>`;
 }
 function videoBadge(status) {
   const m = {
-    'uploaded':                    ['Uploaded',     'done'],
-    'pending_upload':              ['Pending',      'pending'],
-    'regenerated_pending_upload':  ['Re-gen Pend.', 'pending'],
-    'needs_redo':                  ['Needs Redo',   'error'],
-    'not_uploaded':                ['Not Up.',      'error'],
-    'not_started':                 ['—',            'neutral'],
-    '':                            ['—',            'neutral']
+    'uploaded': ['Uploaded', 'done'],
+    'pending_upload': ['Pending', 'pending'],
+    'regenerated_pending_upload': ['Re-gen Pend.', 'pending'],
+    'needs_redo': ['Needs Redo', 'error'],
+    'not_uploaded': ['Not Up.', 'error'],
+    'not_started': ['—', 'neutral'], '': ['—', 'neutral']
   };
-  const [text, kind] = m[status] || ['Unknown', 'neutral'];
-  return badge(text, kind);
+  const [t, k] = m[status] || ['Unknown', 'neutral'];
+  return badge(t, k);
 }
 function aplusBadge(status) {
   const m = {
-    'live':         ['Live',         'done'],
-    'submitted':    ['Submitted',    'processing'],
-    'in_progress': ['In Progress',  'pending'],
-    'not_started':  ['Not Started',  'neutral'],
-    'blocked':      ['Blocked',      'error'],
-    'not_eligible': ['Not Eligible', 'error'],
-    '':             ['—',            'neutral']
+    'live': ['Live', 'done'], 'submitted': ['Submitted', 'processing'],
+    'in_progress': ['In Progress', 'pending'], 'not_started': ['Not Started', 'neutral'],
+    'blocked': ['Blocked', 'error'], 'not_eligible': ['Not Eligible', 'error'],
+    '': ['—', 'neutral']
   };
-  const [text, kind] = m[status] || ['—', 'neutral'];
-  return badge(text, kind);
+  const [t, k] = m[status] || ['—', 'neutral'];
+  return badge(t, k);
 }
 
 /* ============ TABS ============ */
@@ -305,13 +270,8 @@ function initTabs(rootSel) {
   if (buttons[0]) activate(buttons[0].dataset.tab);
 }
 
-/* ============ EXCEL HELPERS (used by orders.html, labels.html) ============ */
+/* ============ EXCEL HELPERS ============ */
 
-// Parses an Amazon Stocking PO sheet into normalised rows.
-//   po_code   = col[2]   (Excel C)
-//   ship_to   = col[4]   (Excel E)
-//   item_name = col[16]  (Excel Q)
-//   quantity  = col[17]  (Excel R)
 function parseStockingPOExcel(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -333,9 +293,7 @@ function parseStockingPOExcel(file) {
           items.push({
             po_code: po.toUpperCase(),
             ship_to: String(row[4] || '').trim(),
-            item_name: itemName,
-            quantity: qty,
-            row: i
+            item_name: itemName, quantity: qty, row: i
           });
         }
         resolve(items);
@@ -361,12 +319,100 @@ function copyToClipboard(text) {
   } else {
     const ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
     try { document.execCommand('copy'); toast('Copied to clipboard', 'success'); }
     catch (e) { toast('Copy failed', 'error'); }
     ta.remove();
   }
+}
+
+/* ============ SUPABASE REST HELPERS ============ */
+
+function sbHeaders(extra) {
+  const h = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept': 'application/json'
+  };
+  if (extra) Object.assign(h, extra);
+  return h;
+}
+async function sbGet(path) {
+  const url = SUPABASE_URL + '/rest/v1/' + path;
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error('Supabase GET ' + path + ' -> ' + res.status);
+  return res.json();
+}
+async function sbUpsert(table, row, conflictCol) {
+  const url = SUPABASE_URL + '/rest/v1/' + table + '?on_conflict=' + encodeURIComponent(conflictCol);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: sbHeaders({
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates,return=representation'
+    }),
+    body: JSON.stringify(row)
+  });
+  if (!res.ok) throw new Error('Supabase upsert ' + table + ' -> ' + res.status + ': ' + await res.text());
+  return res.json();
+}
+
+/* ============ BOX INVENTORY ============ */
+
+let _boxInvCache = null;
+async function loadBoxInventory(forceRefresh) {
+  if (!forceRefresh && _boxInvCache) return _boxInvCache;
+  try {
+    const rows = await sbGet('i3_warehouse_box_inventory?select=*&order=tlaps_sku.asc');
+    _boxInvCache = rows;
+    localStorage.setItem(BOX_CACHE_KEY, JSON.stringify({ ts: Date.now(), rows }));
+    return rows;
+  } catch (e) {
+    console.warn('[box inventory] Supabase fetch failed, using local cache:', e.message);
+    const cached = JSON.parse(localStorage.getItem(BOX_CACHE_KEY) || 'null');
+    if (cached && Array.isArray(cached.rows)) { _boxInvCache = cached.rows; return cached.rows; }
+    _boxInvCache = [];
+    return [];
+  }
+}
+function getBoxRowByDhgSku(dhgSku, inventory) {
+  if (!dhgSku || !inventory) return null;
+  const t = String(dhgSku).trim().toLowerCase();
+  return inventory.find(r => String(r.dhg_sku || '').trim().toLowerCase() === t) || null;
+}
+function evaluateBoxStatus(dhgSku, qtyNeeded, inventory) {
+  const row = getBoxRowByDhgSku(dhgSku, inventory);
+  if (!row) {
+    return { on_hand: null, last_counted_at: null, request_from_dhg: true, gap: qtyNeeded,
+      status: 'unknown', label: '? No count on file - request ' + qtyNeeded + ' from DHG' };
+  }
+  const onHand = parseInt(row.retail_boxes_on_hand, 10) || 0;
+  if (onHand >= qtyNeeded) {
+    return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: false, gap: 0,
+      status: 'ok', label: 'Pablo has ' + onHand + ' boxes' };
+  }
+  if (onHand === 0) {
+    return { on_hand: 0, last_counted_at: row.last_counted_at, request_from_dhg: true, gap: qtyNeeded,
+      status: 'none', label: '0 boxes on hand - request ' + qtyNeeded + ' from DHG' };
+  }
+  const gap = qtyNeeded - onHand;
+  return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: true, gap: gap,
+    status: 'short', label: 'Only ' + onHand + ' boxes - request ' + gap + ' from DHG' };
+}
+async function upsertBoxRow(dhgSku, tlapsSku, boxesOnHand, notes) {
+  const email = sessionStorage.getItem(EMAIL_KEY) || '';
+  const row = {
+    dhg_sku: String(dhgSku).trim(),
+    tlaps_sku: String(tlapsSku || '').trim(),
+    retail_boxes_on_hand: Math.max(0, parseInt(boxesOnHand, 10) || 0),
+    notes: String(notes || ''),
+    last_counted_at: new Date().toISOString(),
+    updated_by: email || null
+  };
+  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dhg_sku');
+  _boxInvCache = null;
+  await loadBoxInventory(true);
+  return result;
 }

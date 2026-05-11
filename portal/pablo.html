@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receiving — Pablo's Box Inventory — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Receiving — Retail Box Inventory</h1>
+        <div class="subtitle">Pablo: update after every receiving / picking session</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
+        <button class="btn btn-primary" id="btn-save-all">Save all changes</button>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="card">
+        <div id="last-loaded" class="muted tiny" style="margin-bottom:10px"></div>
+        <table class="data-table compact" id="inv-table">
+          <thead>
+            <tr>
+              <th style="width:200px">I3 SKU</th>
+              <th style="width:160px">DHG SKU</th>
+              <th>Description</th>
+              <th style="width:140px" class="text-right">Retail Boxes on Hand</th>
+              <th style="width:160px">Last Counted</th>
+              <th style="width:240px">Notes</th>
+              <th style="width:90px"></th>
+            </tr>
+          </thead>
+          <tbody id="inv-body">
+            <tr><td colspan="7" class="muted">Loading inventory…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">How this is used</h3>
+        <p class="tiny" style="margin:0">
+          When Ricky generates a DHG purchase order, the portal looks up these
+          counts. If you have enough retail boxes on hand for a SKU, the PO
+          tells Raymond <em>not</em> to ship retail boxes for that item — we'll
+          repack what you already have. If you're short, the PO asks DHG to
+          send the gap. Keep these numbers honest: update after every
+          receiving and after every picking session.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('pablo');
+
+  const state = {
+    mapping: null,
+    inventory: [],
+    dirty: {}     // dhg_sku -> { retail_boxes_on_hand, notes }
+  };
+
+  document.getElementById('btn-refresh').addEventListener('click', () => init(true));
+  document.getElementById('btn-save-all').addEventListener('click', saveAll);
+
+  init(false);
+
+  async function init(force) {
+    document.getElementById('inv-body').innerHTML =
+      '<tr><td colspan="7" class="muted">Loading inventory…</td></tr>';
+    try {
+      state.mapping   = await loadSkuMapping(true);
+      state.inventory = await loadBoxInventory(!!force);
+      state.dirty = {};
+      render();
+    } catch (e) {
+      toast('Failed to load: ' + e.message, 'error');
+    }
+  }
+
+  function render() {
+    const tbody = document.getElementById('inv-body');
+    const stamp = document.getElementById('last-loaded');
+    const cached = JSON.parse(localStorage.getItem('tlaps_box_inventory_cache') || 'null');
+    if (cached && cached.ts) {
+      const when = new Date(cached.ts).toLocaleString();
+      stamp.textContent = 'Cache last refreshed ' + when + ' · ' + (state.inventory.length) + ' rows';
+    } else {
+      stamp.textContent = state.inventory.length + ' rows';
+    }
+
+    // Build a quick map of inventory rows by dhg_sku
+    const invByDhg = {};
+    state.inventory.forEach(r => { invByDhg[String(r.dhg_sku).toLowerCase()] = r; });
+
+    // Use the SKU mapping as the canonical list of rows, fall back to whatever
+    // inventory rows exist on top so nothing falls through the cracks.
+    const products = (state.mapping && state.mapping.products) ? state.mapping.products : [];
+    const seenDhg  = new Set();
+
+    const rowsHtml = products.map(p => {
+      const key = String(p.dhg_sku || '').toLowerCase();
+      seenDhg.add(key);
+      const inv = invByDhg[key] || {};
+      return rowHtml({
+        i3_sku:    p.i3_sku,
+        dhg_sku:   p.dhg_sku,
+        desc:      p.description || '',
+        on_hand:   inv.retail_boxes_on_hand != null ? inv.retail_boxes_on_hand : '',
+        last_counted: inv.last_counted_at || '',
+        notes:     inv.notes || ''
+      });
+    });
+
+    // Any inventory row not in the mapping (defensive)
+    state.inventory.forEach(r => {
+      const key = String(r.dhg_sku || '').toLowerCase();
+      if (seenDhg.has(key)) return;
+      rowsHtml.push(rowHtml({
+        i3_sku:    r.tlaps_sku || '—',
+        dhg_sku:   r.dhg_sku,
+        desc:      '(no catalog match)',
+        on_hand:   r.retail_boxes_on_hand,
+        last_counted: r.last_counted_at || '',
+        notes:     r.notes || ''
+      }));
+    });
+
+    tbody.innerHTML = rowsHtml.join('');
+
+    tbody.querySelectorAll('input[data-role="boxes"], textarea[data-role="notes"]').forEach(el => {
+      el.addEventListener('input', onFieldChange);
+    });
+    tbody.querySelectorAll('button[data-role="save-row"]').forEach(btn => {
+      btn.addEventListener('click', () => saveRow(btn.dataset.dhgSku, btn.dataset.tlapsSku));
+    });
+  }
+
+  function rowHtml(r) {
+    const stamped = r.last_counted ? new Date(r.last_counted).toLocaleString() : '—';
+    return `
+      <tr data-dhg-sku="${escapeHtml(r.dhg_sku)}">
+        <td class="mono">${escapeHtml(r.i3_sku)}</td>
+        <td class="mono">${escapeHtml(r.dhg_sku)}</td>
+        <td>${escapeHtml(r.desc)}</td>
+        <td class="text-right">
+          <input class="form-input" type="number" min="0" step="1"
+                 data-role="boxes"
+                 data-dhg-sku="${escapeHtml(r.dhg_sku)}"
+                 data-tlaps-sku="${escapeHtml(r.i3_sku)}"
+                 value="${r.on_hand === '' ? '' : Number(r.on_hand)}"
+                 style="text-align:right;width:90px">
+        </td>
+        <td class="tiny">${escapeHtml(stamped)}</td>
+        <td>
+          <textarea class="form-input"
+                    data-role="notes"
+                    data-dhg-sku="${escapeHtml(r.dhg_sku)}"
+                    data-tlaps-sku="${escapeHtml(r.i3_sku)}"
+                    rows="1"
+                    placeholder="optional"
+                    style="width:100%;min-height:30px">${escapeHtml(r.notes)}</textarea>
+        </td>
+        <td>
+          <button class="btn btn-secondary"
+                  data-role="save-row"
+                  data-dhg-sku="${escapeHtml(r.dhg_sku)}"
+                  data-tlaps-sku="${escapeHtml(r.i3_sku)}"
+                  style="padding:4px 10px;font-size:11px">Save</button>
+        </td>
+      </tr>
+    `;
+  }
+
+  function onFieldChange(e) {
+    const dhg   = e.target.dataset.dhgSku;
+    const tlaps = e.target.dataset.tlapsSku;
+    const role  = e.target.dataset.role;
+    if (!state.dirty[dhg]) state.dirty[dhg] = { tlaps_sku: tlaps };
+    if (role === 'boxes') state.dirty[dhg].retail_boxes_on_hand = e.target.value;
+    if (role === 'notes') state.dirty[dhg].notes = e.target.value;
+  }
+
+  async function saveRow(dhg, tlaps) {
+    const tr = document.querySelector('tr[data-dhg-sku="' + cssEscape(dhg) + '"]');
+    if (!tr) return;
+    const boxes = parseInt(tr.querySelector('input[data-role="boxes"]').value, 10);
+    const notes = tr.querySelector('textarea[data-role="notes"]').value;
+    if (Number.isNaN(boxes) || boxes < 0) {
+      toast('Enter a non-negative whole number for ' + dhg, 'error');
+      return;
+    }
+    try {
+      await upsertBoxRow(dhg, tlaps, boxes, notes);
+      delete state.dirty[dhg];
+      toast('Saved ' + dhg, 'success');
+      // refresh just this row's "Last Counted" cell without rerendering everything
+      state.inventory = await loadBoxInventory(true);
+      render();
+    } catch (e) {
+      toast('Save failed: ' + e.message, 'error');
+    }
+  }
+
+  async function saveAll() {
+    const keys = Object.keys(state.dirty);
+    if (!keys.length) { toast('Nothing to save', 'info'); return; }
+    let ok = 0, fail = 0;
+    for (const k of keys) {
+      const d = state.dirty[k];
+      const boxes = parseInt(d.retail_boxes_on_hand, 10);
+      if (Number.isNaN(boxes) || boxes < 0) { fail++; continue; }
+      try {
+        await upsertBoxRow(k, d.tlaps_sku, boxes, d.notes || '');
+        ok++;
+      } catch (e) {
+        fail++;
+        console.error('Save failed for', k, e);
+      }
+    }
+    toast('Saved ' + ok + ' row' + (ok === 1 ? '' : 's') + (fail ? ' (' + fail + ' failed)' : ''), fail ? 'error' : 'success');
+    state.dirty = {};
+    state.inventory = await loadBoxInventory(true);
+    render();
+  }
+
+  // Tiny CSS.escape polyfill for old browsers
+  function cssEscape(s) {
+    if (window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_\-]/g, c => '\\' + c);
+  }
+</script>
+</body>
+</html>

@@ -12,36 +12,32 @@
 <body>
 <div class="portal-layout">
   <nav class="sidebar"></nav>
-
   <main class="main">
     <div class="main-header">
       <div>
         <h1>Orders &amp; PO Management</h1>
-        <div class="subtitle">Import Amazon stocking POs → auto-generate DHG purchase orders</div>
+        <div class="subtitle">Import Amazon stocking POs &rarr; auto-generate DHG purchase orders</div>
       </div>
     </div>
 
-    <!-- ============ STEP 1: Import Amazon PO ============ -->
     <section class="section">
       <h2>1. Import Amazon Stocking PO</h2>
       <div class="card">
         <div class="upload-zone" id="po-zone" style="margin-bottom:14px">
-          <div class="uz-icon">▤</div>
+          <div class="uz-icon">&#9636;</div>
           <div class="uz-label">Drop Amazon Stocking PO Excel</div>
-          <div class="uz-hint">.xlsx — PO codes col C, ship-to col E, item col Q, qty col R</div>
+          <div class="uz-hint">.xlsx &mdash; PO codes col C, ship-to col E, item col Q, qty col R</div>
           <input type="file" id="po-input" accept=".xlsx,.xls" hidden>
         </div>
         <div id="import-summary" class="muted tiny"></div>
       </div>
     </section>
 
-    <!-- ============ STEP 2: Generated DHG POs ============ -->
     <section class="section" id="dhg-section" style="display:none">
       <h2>2. Generated DHG Purchase Orders</h2>
       <div id="po-cards"></div>
     </section>
 
-    <!-- ============ STEP 3: PO History ============ -->
     <section class="section">
       <h2>3. PO History</h2>
       <div class="card">
@@ -60,19 +56,14 @@
   requireAuth();
   renderSidebar('orders');
 
-  const state = {
-    items: [],         // parsed items
-    skuMapping: null,
-    pos: []            // grouped POs from current import
-  };
+  const state = { items: [], skuMapping: null, boxInventory: [], pos: [] };
 
-  loadSkuMapping(true).then(d => state.skuMapping = d);
+  Promise.all([
+    loadSkuMapping(true).then(d => state.skuMapping = d),
+    loadBoxInventory(false).then(rows => state.boxInventory = rows || [])
+  ]).then(() => { if (state.pos.length) renderPOs(); });
 
-  setupDragDrop(
-    document.getElementById('po-zone'),
-    document.getElementById('po-input'),
-    onPOFile
-  );
+  setupDragDrop(document.getElementById('po-zone'), document.getElementById('po-input'), onPOFile);
 
   document.getElementById('btn-clear-history').addEventListener('click', () => {
     if (!confirm('Clear all saved PO history?')) return;
@@ -83,22 +74,17 @@
 
   renderHistory();
 
-  /* ============ PARSE ============ */
   async function onPOFile(file) {
     markZoneFilled(document.getElementById('po-zone'), file);
     try {
       state.items = await parseStockingPOExcel(file);
       if (!state.items.length) throw new Error('No PO line items found.');
-
       state.pos = groupByPO(state.items);
       renderPOs();
-
       document.getElementById('import-summary').innerHTML =
-        `Parsed <strong>${state.items.length}</strong> line items across <strong>${state.pos.length}</strong> PO${state.pos.length === 1 ? '' : 's'}.`;
+        'Parsed <strong>' + state.items.length + '</strong> line items across <strong>' + state.pos.length + '</strong> PO' + (state.pos.length === 1 ? '' : 's') + '.';
       document.getElementById('dhg-section').style.display = '';
-    } catch (e) {
-      toast('Import failed: ' + e.message, 'error');
-    }
+    } catch (e) { toast('Import failed: ' + e.message, 'error'); }
   }
 
   function groupByPO(items) {
@@ -110,7 +96,6 @@
     return Object.values(map);
   }
 
-  /* ============ RENDER PO CARDS ============ */
   function renderPOs() {
     const root = document.getElementById('po-cards');
     root.innerHTML = state.pos.map((po, idx) => {
@@ -122,179 +107,191 @@
         const product = lookupProduct(i.item_name, state.skuMapping);
         const tlaps = isTlapsSku(i.item_name);
         const cost = product && product.dhg_cost ? product.dhg_cost * i.quantity : null;
+        const boxStatus = tlaps
+          ? evaluateBoxStatus(dhg, i.quantity, state.boxInventory)
+          : { on_hand: null, request_from_dhg: false, gap: 0, status: 'na', label: '-' };
         return {
-          i3: i.item_name,
-          dhg: dhg || '—',
-          desc: product ? product.description : '',
-          qty: i.quantity,
-          unit_cost: product ? product.dhg_cost : null,
-          line_cost: cost,
-          tlaps
+          i3: i.item_name, dhg: dhg || '-', desc: product ? product.description : '',
+          qty: i.quantity, unit_cost: product ? product.dhg_cost : null,
+          line_cost: cost, tlaps, box_status: boxStatus
         };
       });
 
       const totalCost = lines.reduce((s, l) => s + (l.line_cost || 0), 0);
       const allTlapsHaveCost = lines.filter(l => l.tlaps).every(l => l.unit_cost);
 
-      return `
-        <div class="card mb-12" style="margin-bottom:14px" data-po-idx="${idx}">
-          <div class="flex-between mb-12">
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--green)">PO <span class="mono">${po.po_code}</span></div>
-              <div class="tiny mt-12">Ship to: <strong>${escapeHtml(po.ship_to || '—')}</strong> · ${po.items.length} line${po.items.length === 1 ? '' : 's'} · TLAPS ${tlapsItems.length} / Other ${otherItems.length}</div>
-            </div>
-            <div class="row-actions">
-              <button class="btn btn-ghost" data-action="download-xlsx">Download .xlsx</button>
-              <button class="btn btn-secondary" data-action="copy-email">Copy email body</button>
-              <button class="btn btn-primary" data-action="save">Save PO</button>
-            </div>
-          </div>
-          <table class="data-table compact">
-            <thead>
-              <tr><th>I3 SKU</th><th>DHG SKU</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Line Cost</th></tr>
-            </thead>
-            <tbody>
-              ${lines.map(l => `
-                <tr>
-                  <td class="mono">${escapeHtml(l.i3)}${l.tlaps ? '' : ' <span class="badge badge-non-tlaps">non-TLAPS</span>'}</td>
-                  <td class="mono">${escapeHtml(l.dhg)}</td>
-                  <td>${escapeHtml(l.desc)}</td>
-                  <td class="mono text-right">${l.qty}</td>
-                  <td class="mono text-right">${l.unit_cost ? money(l.unit_cost) : '<span class="cost-unconfirmed">—</span>'}</td>
-                  <td class="mono text-right">${l.line_cost ? money(l.line_cost) : '<span class="cost-unconfirmed">—</span>'}</td>
-                </tr>
-              `).join('')}
-              <tr style="font-weight:700;background:var(--green-pale)">
-                <td colspan="5" class="text-right">Total estimated DHG cost</td>
-                <td class="mono text-right">${money(totalCost)}${allTlapsHaveCost ? '' : ' <span class="tiny" style="color:var(--error)">(some unconfirmed)</span>'}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      `;
+      return '<div class="card mb-12" style="margin-bottom:14px" data-po-idx="' + idx + '">'
+        + '<div class="flex-between mb-12">'
+        +   '<div>'
+        +     '<div style="font-size:14px;font-weight:700;color:var(--green)">PO <span class="mono">' + escapeHtml(po.po_code) + '</span></div>'
+        +     '<div class="tiny mt-12">Ship to: <strong>' + escapeHtml(po.ship_to || '-') + '</strong> &middot; ' + po.items.length + ' line' + (po.items.length === 1 ? '' : 's') + ' &middot; TLAPS ' + tlapsItems.length + ' / Other ' + otherItems.length + '</div>'
+        +   '</div>'
+        +   '<div class="row-actions">'
+        +     '<button class="btn btn-ghost" data-action="download-xlsx">Download .xlsx</button>'
+        +     '<button class="btn btn-secondary" data-action="copy-email">Copy email body</button>'
+        +     '<button class="btn btn-primary" data-action="save">Save PO</button>'
+        +   '</div>'
+        + '</div>'
+        + '<table class="data-table compact">'
+        +   '<thead><tr><th>I3 SKU</th><th>DHG SKU</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Line Cost</th><th>Retail Boxes</th><th>Req. DHG?</th></tr></thead>'
+        +   '<tbody>'
+        +     lines.map((l, lineIdx) => {
+              const bs = l.box_status || {};
+              const klass = bs.status === 'ok' ? 'box-status-ok'
+                          : bs.status === 'short' ? 'box-status-short'
+                          : bs.status === 'none' ? 'box-status-none'
+                          : bs.status === 'unknown' ? 'box-status-unknown'
+                          : 'box-status-na';
+              const reqChecked = bs.request_from_dhg ? 'checked' : '';
+              const reqDisabled = l.tlaps ? '' : 'disabled';
+              return '<tr>'
+                + '<td class="mono">' + escapeHtml(l.i3) + (l.tlaps ? '' : ' <span class="badge badge-non-tlaps">non-TLAPS</span>') + '</td>'
+                + '<td class="mono">' + escapeHtml(l.dhg) + '</td>'
+                + '<td>' + escapeHtml(l.desc) + '</td>'
+                + '<td class="mono text-right">' + l.qty + '</td>'
+                + '<td class="mono text-right">' + (l.unit_cost ? money(l.unit_cost) : '<span class="cost-unconfirmed">-</span>') + '</td>'
+                + '<td class="mono text-right">' + (l.line_cost ? money(l.line_cost) : '<span class="cost-unconfirmed">-</span>') + '</td>'
+                + '<td class="' + klass + '" style="font-size:11px">' + escapeHtml(bs.label || '-') + '</td>'
+                + '<td class="text-center"><input type="checkbox" data-req-po-idx="' + idx + '" data-req-line-idx="' + lineIdx + '" data-role="req-dhg" ' + reqChecked + ' ' + reqDisabled + '></td>'
+                + '</tr>';
+            }).join('')
+        +     '<tr style="font-weight:700;background:var(--green-pale)">'
+        +       '<td colspan="5" class="text-right">Total estimated DHG cost</td>'
+        +       '<td class="mono text-right">' + money(totalCost) + (allTlapsHaveCost ? '' : ' <span class="tiny" style="color:var(--error)">(some unconfirmed)</span>') + '</td>'
+        +       '<td colspan="2"></td>'
+        +     '</tr>'
+        +   '</tbody>'
+        + '</table>'
+        + '</div>';
     }).join('');
 
-    // Wire buttons
+    root.querySelectorAll('input[data-role="req-dhg"]').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const poIdx = parseInt(e.target.dataset.reqPoIdx, 10);
+        const lineIdx = parseInt(e.target.dataset.reqLineIdx, 10);
+        const po = state.pos[poIdx];
+        if (!po || !po.items[lineIdx]) return;
+        po.items[lineIdx].request_dhg_retail_boxes = e.target.checked;
+      });
+    });
+
+    state.pos.forEach((po) => {
+      po.items.forEach((it) => {
+        if (it.request_dhg_retail_boxes !== undefined) return;
+        if (!isTlapsSku(it.item_name)) { it.request_dhg_retail_boxes = false; return; }
+        const dhg = lookupDhgSku(it.item_name, state.skuMapping);
+        const bs = evaluateBoxStatus(dhg, it.quantity, state.boxInventory);
+        it.request_dhg_retail_boxes = bs.request_from_dhg;
+      });
+    });
+
     root.querySelectorAll('[data-po-idx]').forEach(card => {
-      const idx = parseInt(card.dataset.poIdx);
+      const idx = parseInt(card.dataset.poIdx, 10);
       card.querySelector('[data-action="download-xlsx"]').addEventListener('click', () => downloadDhgPO(state.pos[idx]));
       card.querySelector('[data-action="copy-email"]').addEventListener('click', () => copyEmailBody(state.pos[idx]));
       card.querySelector('[data-action="save"]').addEventListener('click', () => savePO(state.pos[idx]));
     });
   }
 
-  /* ============ DOWNLOAD .xlsx ============ */
   function downloadDhgPO(po) {
-    const headers = ['DHG SKU', 'I3 SKU', 'Description', 'Qty', 'Unit Cost', 'Line Cost'];
+    const headers = ['DHG SKU', 'I3 SKU', 'Description', 'Qty', 'Unit Cost', 'Line Cost', 'Send Retail Box?'];
     const rows = po.items.map(i => {
       const product = lookupProduct(i.item_name, state.skuMapping);
       const dhg = lookupDhgSku(i.item_name, state.skuMapping) || '';
       const unit = product ? product.dhg_cost : '';
-      return [dhg, i.item_name, product ? product.description : '', i.quantity, unit || '', unit ? unit * i.quantity : ''];
+      return [dhg, i.item_name, product ? product.description : '', i.quantity, unit || '',
+              unit ? unit * i.quantity : '', i.request_dhg_retail_boxes ? 'YES' : 'no'];
     });
     const sheet = XLSX.utils.aoa_to_sheet([
       ['TLAPS DHG Purchase Order'],
       ['PO Number', po.po_code],
-      ['Ship To',   po.ship_to || ''],
-      ['Date',      new Date().toISOString().slice(0, 10)],
-      [],
-      headers,
-      ...rows
+      ['Ship To', po.ship_to || ''],
+      ['Date', new Date().toISOString().slice(0, 10)],
+      [], headers, ...rows
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, 'PO');
-    XLSX.writeFile(wb, `DHG-PO-${po.po_code}-${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, 'DHG-PO-' + po.po_code + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
   }
 
-  /* ============ COPY EMAIL BODY ============ */
   function copyEmailBody(po) {
     const lines = po.items.map((i, n) => {
-      const dhg = lookupDhgSku(i.item_name, state.skuMapping) || '—';
+      const dhg = lookupDhgSku(i.item_name, state.skuMapping) || '-';
       const product = lookupProduct(i.item_name, state.skuMapping);
-      return `| ${n + 1} | ${dhg} | ${i.item_name} | ${product ? product.description : ''} | ${i.quantity} |`;
+      const boxNote = i.request_dhg_retail_boxes ? 'YES' : 'no (Pablo has on hand)';
+      return '| ' + (n + 1) + ' | ' + dhg + ' | ' + i.item_name + ' | ' + (product ? product.description : '') + ' | ' + i.quantity + ' | ' + boxNote + ' |';
     }).join('\n');
+
+    const ask = po.items.filter(i => i.request_dhg_retail_boxes)
+      .map(i => '  - ' + (lookupDhgSku(i.item_name, state.skuMapping) || i.item_name) + ' x ' + i.quantity);
+    const noAsk = po.items.filter(i => isTlapsSku(i.item_name) && !i.request_dhg_retail_boxes)
+      .map(i => '  - ' + (lookupDhgSku(i.item_name, state.skuMapping) || i.item_name) + ' x ' + i.quantity + ' (Pablo has stock)');
+
+    const boxBlock = [
+      'Retail box request:',
+      ask.length ? 'Please SEND retail boxes for:\n' + ask.join('\n') : 'No retail boxes needed - Pablo has stock for all items.',
+      noAsk.length ? '\nSkip retail boxes for:\n' + noAsk.join('\n') : ''
+    ].filter(Boolean).join('\n');
+
     const body = [
-      `Subject: TLAPS PO - ${po.po_code} - ${po.ship_to || ''} - ${new Date().toISOString().slice(0,10)}`,
-      '',
-      'Hi Raymond,',
-      '',
-      'Please process the following order:',
-      '',
-      `PO Number: ${po.po_code}`,
-      `Ship To: ${po.ship_to || ''}`,
-      '',
+      'Subject: TLAPS PO - ' + po.po_code + ' - ' + (po.ship_to || '') + ' - ' + new Date().toISOString().slice(0,10),
+      '', 'Hi Raymond,', '', 'Please process the following order:', '',
+      'PO Number: ' + po.po_code,
+      'Ship To: ' + (po.ship_to || ''), '',
       'Items:',
-      '| # | DHG SKU | I3 SKU | Description | Qty |',
-      '|---|---------|--------|-------------|-----|',
-      lines,
-      '',
-      'Labels are attached separately.',
-      '',
-      'Thank you,',
-      'Ricky Tsui',
-      'I3 Enterprise / TLAPS'
+      '| # | DHG SKU | I3 SKU | Description | Qty | Send retail boxes? |',
+      '|---|---------|--------|-------------|-----|--------------------|',
+      lines, '', boxBlock, '',
+      'Labels are attached separately.', '',
+      'Thank you,', 'Ricky Tsui', 'I3 Enterprise / TLAPS'
     ].join('\n');
     copyToClipboard(body);
   }
 
-  /* ============ SAVE TO HISTORY ============ */
   function savePO(po) {
     const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
-    const product = (i) => lookupProduct(i.item_name, state.skuMapping);
-    const lines = po.items.map(i => ({
-      i3: i.item_name,
-      dhg: lookupDhgSku(i.item_name, state.skuMapping),
-      qty: i.quantity,
-      unit_cost: product(i) ? product(i).dhg_cost : null
-    }));
+    const lines = po.items.map(i => {
+      const product = lookupProduct(i.item_name, state.skuMapping);
+      const dhg = lookupDhgSku(i.item_name, state.skuMapping);
+      const bs = isTlapsSku(i.item_name) ? evaluateBoxStatus(dhg, i.quantity, state.boxInventory) : null;
+      return {
+        i3: i.item_name, dhg, qty: i.quantity,
+        unit_cost: product ? product.dhg_cost : null,
+        boxes_on_hand: bs ? bs.on_hand : null,
+        box_status: bs ? bs.status : 'na',
+        request_dhg_retail_boxes: !!i.request_dhg_retail_boxes
+      };
+    });
     list.unshift({
       id: 'po_' + Date.now(),
-      po_code: po.po_code,
-      ship_to: po.ship_to || '',
-      lines,
+      po_code: po.po_code, ship_to: po.ship_to || '', lines,
       total_cost: lines.reduce((s, l) => s + (l.unit_cost ? l.unit_cost * l.qty : 0), 0),
-      status: 'DRAFT',
-      saved_at: new Date().toISOString()
+      status: 'DRAFT', saved_at: new Date().toISOString()
     });
     localStorage.setItem('tlaps_pos', JSON.stringify(list));
     toast('PO saved to history', 'success');
     renderHistory();
   }
 
-  /* ============ HISTORY ============ */
   function renderHistory() {
     const list = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
     const root = document.getElementById('history');
-    if (!list.length) {
-      root.innerHTML = '<div class="muted tiny">No saved POs yet.</div>';
-      return;
-    }
-    root.innerHTML = `
-      <table class="data-table compact">
-        <thead>
-          <tr><th>Saved</th><th>PO #</th><th>Ship-To</th><th>Lines</th><th>Cost</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          ${list.map(po => `
-            <tr>
-              <td class="mono tiny">${po.saved_at.slice(0, 16).replace('T', ' ')}</td>
-              <td class="mono">${escapeHtml(po.po_code)}</td>
-              <td>${escapeHtml(po.ship_to || '—')}</td>
-              <td class="mono text-right">${po.lines.length}</td>
-              <td class="mono text-right">${money(po.total_cost)}</td>
-              <td>
-                <select data-po-id="${po.id}" data-status onchange="window._poStatusChange(this)" class="form-input" style="padding:3px 6px;font-size:11px;width:120px">
-                  ${['DRAFT','SENT','CONFIRMED','SHIPPED','RECEIVED'].map(s =>
-                    `<option ${s === po.status ? 'selected' : ''}>${s}</option>`
-                  ).join('')}
-                </select>
-              </td>
-              <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="window._poDelete('${po.id}')">Delete</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+    if (!list.length) { root.innerHTML = '<div class="muted tiny">No saved POs yet.</div>'; return; }
+    root.innerHTML = '<table class="data-table compact"><thead><tr><th>Saved</th><th>PO #</th><th>Ship-To</th><th>Lines</th><th>Cost</th><th>Status</th><th></th></tr></thead><tbody>'
+      + list.map(po =>
+          '<tr>'
+          + '<td class="mono tiny">' + po.saved_at.slice(0,16).replace('T',' ') + '</td>'
+          + '<td class="mono">' + escapeHtml(po.po_code) + '</td>'
+          + '<td>' + escapeHtml(po.ship_to || '-') + '</td>'
+          + '<td class="mono text-right">' + po.lines.length + '</td>'
+          + '<td class="mono text-right">' + money(po.total_cost) + '</td>'
+          + '<td><select data-po-id="' + po.id + '" data-status onchange="window._poStatusChange(this)" class="form-input" style="padding:3px 6px;font-size:11px;width:120px">'
+          +   ['DRAFT','SENT','CONFIRMED','SHIPPED','RECEIVED'].map(s => '<option ' + (s === po.status ? 'selected' : '') + '>' + s + '</option>').join('')
+          + '</select></td>'
+          + '<td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="window._poDelete(\'' + po.id + '\')">Delete</button></td>'
+          + '</tr>'
+        ).join('')
+      + '</tbody></table>';
   }
 
   window._poStatusChange = (sel) => {
@@ -304,7 +301,7 @@
     if (!po) return;
     po.status = sel.value;
     localStorage.setItem('tlaps_pos', JSON.stringify(list));
-    toast(`PO ${po.po_code} → ${po.status}`, 'success');
+    toast('PO ' + po.po_code + ' -> ' + po.status, 'success');
   };
   window._poDelete = (id) => {
     if (!confirm('Delete this PO from history?')) return;
