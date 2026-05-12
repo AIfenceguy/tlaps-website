@@ -7,58 +7,103 @@
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="../images/favicon.ico">
 <link rel="stylesheet" href="assets/portal.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 14px; }
+  .filters .field { display: flex; flex-direction: column; gap: 3px; }
+  .filters label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .filters input, .filters select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; background: var(--bg-card); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .stat .label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+  .stat .value { font-size: 22px; font-weight: 700; color: var(--green); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .ml-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10px; font-weight: 600; }
+  .b-live      { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .b-draft     { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  .b-nis       { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .b-other     { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+  .pct-bar { display: inline-block; width: 80px; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+  .pct-bar > div { height: 100%; background: var(--green); transition: width 0.2s; }
+  .pct-bar.red    > div { background: #b91c1c; }
+  .pct-bar.yellow > div { background: #a16207; }
+  .pct-bar.green  > div { background: #15803d; }
+  .pct-bar.grey   > div { background: #9ca3af; }
+  .ck-row { font-family: monospace; font-size: 11px; letter-spacing: 1px; color: var(--text-muted); white-space: nowrap; }
+  .ck-y { color: #15803d; font-weight: 700; }
+  .ck-n { color: #d1d5db; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { background: var(--green-dark); }
+  th .sort-arrow { display: inline-block; width: 12px; opacity: 0.45; font-size: 10px; }
+  th.sort-asc  .sort-arrow::after  { content: '▲'; opacity: 1; }
+  th.sort-desc .sort-arrow::after  { content: '▼'; opacity: 1; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .row-count { font-size: 12px; color: var(--text-muted); margin: 6px 0; }
+  tbody tr { cursor: default; }
+</style>
 </head>
 <body>
 <div class="portal-layout">
   <nav class="sidebar"></nav>
-
   <main class="main">
     <div class="main-header">
       <div>
-        <h1>Product Catalog</h1>
-        <div class="subtitle">All TLAPS launch products — click any row for the full product detail page</div>
+        <h1>Products</h1>
+        <div class="subtitle">All SKUs in tlaps-prod &middot; filter, sort, search &middot; export to CSV/XLSX &middot; inline edit</div>
       </div>
-      <div class="muted" id="meta"></div>
-    </div>
-
-    <div class="section">
-      <div class="table-wrap">
-        <table class="data-table compact">
-          <thead>
-            <tr>
-              <th>I3 SKU</th>
-              <th>DHG SKU</th>
-              <th>ASIN</th>
-              <th>UPC</th>
-              <th>Category</th>
-              <th>Description</th>
-              <th>MAP</th>
-              <th>Selling</th>
-              <th>DHG Cost</th>
-              <th>Margin</th>
-              <th>Video</th>
-              <th>A+</th>
-            </tr>
-          </thead>
-          <tbody id="products-body">
-            <tr><td colspan="12" class="text-center muted" style="padding:40px">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
+        <button class="btn btn-secondary" id="btn-export-csv">Export CSV</button>
+        <button class="btn btn-secondary" id="btn-export-xlsx">Export XLSX</button>
       </div>
     </div>
 
-    <div class="section">
-      <div class="card" style="background:#eff6ff;border-color:#bfdbfe">
-        <div style="display:flex;gap:14px;align-items:flex-start">
-          <div style="font-size:18px;color:#1d4ed8">i</div>
-          <div style="font-size:13px;color:#1e3a8a">
-            <strong>Click any row</strong> to open the product detail page with editable listing content, media gallery,
-            pricing &amp; cost calculator, performance metrics, and a launch readiness checklist.
-            All edits are saved to your browser (Phase 2). Supabase persistence ships in Phase 3.
+    <section class="section">
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="filters">
+          <div class="field"><label>Search (sku/asin/title)</label><input type="search" id="f-search" placeholder="e.g. TLAPS, B0915, plates"></div>
+          <div class="field"><label>Brand</label><select id="f-brand"><option value="">All</option></select></div>
+          <div class="field"><label>Status</label><select id="f-status"><option value="">All</option></select></div>
+          <div class="field"><label>Category</label><select id="f-cat"><option value="">All</option></select></div>
+          <div class="field"><label>Completion</label>
+            <select id="f-comp">
+              <option value="">All</option>
+              <option value="100">100% complete</option>
+              <option value="67">67-99%</option>
+              <option value="33">33-66%</option>
+              <option value="1">1-32%</option>
+              <option value="0">0% untouched</option>
+            </select>
           </div>
+          <div class="field"><button class="btn btn-ghost" id="btn-clear-filters" style="padding:6px 12px">Clear</button></div>
+        </div>
+        <div class="row-count" id="row-count">Loading&hellip;</div>
+        <div style="max-height:65vh; overflow:auto; border:1px solid var(--border); border-radius:4px">
+          <table class="data-table compact" id="tbl" style="margin:0">
+            <thead>
+              <tr>
+                <th class="sortable" data-col="tlaps_sku">I3 SKU <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="dhg_sku">DHG SKU <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="asin">ASIN <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="brand">Brand <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="category">Category <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="status">Status <span class="sort-arrow"></span></th>
+                <th class="sortable text-right" data-col="map_price">MAP <span class="sort-arrow"></span></th>
+                <th class="sortable text-right" data-col="vc_cost">VC Cost <span class="sort-arrow"></span></th>
+                <th class="sortable text-right" data-col="margin_pct_vc">Margin% <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="completion_pct">Completion <span class="sort-arrow"></span></th>
+                <th>Checklist</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"><tr><td colspan="11" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
+          </table>
         </div>
       </div>
-    </div>
+    </section>
   </main>
 </div>
 
@@ -67,50 +112,200 @@
   requireAuth();
   renderSidebar('products');
 
-  function categoryBadge(cat) {
-    return `<span class="badge badge-tlaps">${(cat || '').replace(/_/g, ' ')}</span>`;
+  const state = { all: [], filtered: [], sortCol: 'completion_pct', sortDir: 'desc' };
+
+  document.getElementById('btn-refresh').addEventListener('click', () => load());
+  document.getElementById('btn-export-csv').addEventListener('click', () => exportCSV());
+  document.getElementById('btn-export-xlsx').addEventListener('click', () => exportXLSX());
+  document.getElementById('btn-clear-filters').addEventListener('click', () => clearFilters());
+
+  ['f-search','f-brand','f-status','f-cat','f-comp'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => applyFilters());
+  });
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (state.sortCol === col) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      else { state.sortCol = col; state.sortDir = 'asc'; }
+      applyFilters();
+    });
+  });
+
+  load();
+
+  async function load() {
+    try {
+      // v_sku_completion already joins products + listings + asset_status
+      const rows = await sbGet('v_sku_completion?select=*&limit=2000');
+      state.all = rows;
+      buildFilterOptions();
+      applyFilters();
+    } catch (e) {
+      console.error(e);
+      toast('Failed to load: ' + e.message, 'error');
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="11" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
+    }
   }
 
-  (async () => {
-    try {
-      const data = await loadSkuMapping(true);
-      const tbody = document.getElementById('products-body');
-      if (!data.products || !data.products.length) {
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center muted">No products in mapping.</td></tr>`;
-        return;
+  function buildFilterOptions() {
+    const fillSelect = (id, vals) => {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All</option>' + vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      sel.value = cur;
+    };
+    const uniq = (key) => [...new Set(state.all.map(r => r[key]).filter(Boolean))].sort();
+    fillSelect('f-brand', uniq('brand'));
+    fillSelect('f-status', uniq('status'));
+    fillSelect('f-cat', uniq('category'));
+  }
+
+  function clearFilters() {
+    ['f-search','f-brand','f-status','f-cat','f-comp'].forEach(id => document.getElementById(id).value = '');
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const q  = document.getElementById('f-search').value.trim().toLowerCase();
+    const fb = document.getElementById('f-brand').value;
+    const fs = document.getElementById('f-status').value;
+    const fc = document.getElementById('f-cat').value;
+    const fp = document.getElementById('f-comp').value;
+
+    let rows = state.all.filter(r => {
+      if (q) {
+        const hay = [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
       }
+      if (fb && r.brand !== fb) return false;
+      if (fs && r.status !== fs) return false;
+      if (fc && r.category !== fc) return false;
+      if (fp !== '') {
+        const p = Number(r.completion_pct || 0);
+        const fpn = Number(fp);
+        if (fpn === 100 && p !== 100) return false;
+        if (fpn === 67  && (p < 67  || p >= 100)) return false;
+        if (fpn === 33  && (p < 33  || p >= 67))  return false;
+        if (fpn === 1   && (p < 1   || p >= 33))  return false;
+        if (fpn === 0   && p !== 0) return false;
+      }
+      return true;
+    });
 
-      tbody.innerHTML = data.products.map(p => {
-        const c = computeCosts(p);
-        const dhgCell = p.dhg_cost
-          ? `<span class="${p.dhg_cost_confirmed ? 'cost-confirmed' : 'cost-unconfirmed'}">${c.fmt.dhg}${p.dhg_cost_confirmed ? '' : ' ?'}</span>`
-          : '<span class="cost-unconfirmed">—</span>';
+    rows.sort((a, b) => {
+      const va = a[state.sortCol], vb = b[state.sortCol];
+      const na = (va == null) ? -Infinity : (typeof va === 'number' ? va : String(va).toLowerCase());
+      const nb = (vb == null) ? -Infinity : (typeof vb === 'number' ? vb : String(vb).toLowerCase());
+      const cmp = na < nb ? -1 : na > nb ? 1 : 0;
+      return state.sortDir === 'asc' ? cmp : -cmp;
+    });
 
-        return `
-          <tr class="clickable" onclick="location.href='product-detail.html?asin=${p.asin}'">
-            <td class="mono">${p.i3_sku}</td>
-            <td class="mono">${p.dhg_sku}</td>
-            <td><a href="https://www.amazon.com/dp/${p.asin}" target="_blank" rel="noopener" class="mono" onclick="event.stopPropagation()">${p.asin}</a></td>
-            <td class="mono">${p.upc || '<span class="muted">—</span>'}</td>
-            <td>${categoryBadge(p.category)}</td>
-            <td>${escapeHtml(p.description || '')}</td>
-            <td class="mono">${c.fmt.map}</td>
-            <td class="mono">${c.fmt.asp}</td>
-            <td class="mono">${dhgCell}</td>
-            <td class="mono">${c.fmt.marginPct}</td>
-            <td>${videoBadge(p.media && p.media.video_status)}</td>
-            <td>${aplusBadge(p.media && p.media.aplus_status)}</td>
-          </tr>
-        `;
-      }).join('');
+    state.filtered = rows;
+    render();
+    renderStats();
+    updateSortArrows();
+  }
 
-      document.getElementById('meta').textContent =
-        `${data.products.length} products · v${data.version || '—'}${data.updated ? ' · updated ' + data.updated : ''}`;
-    } catch (e) {
-      document.getElementById('products-body').innerHTML =
-        `<tr><td colspan="12" class="text-center" style="color:var(--error);padding:30px">Failed to load mapping: ${escapeHtml(e.message)}</td></tr>`;
+  function updateSortArrows() {
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.dataset.col === state.sortCol) th.classList.add('sort-' + state.sortDir);
+    });
+  }
+
+  function brandBadge(b) {
+    if (!b) return '';
+    const k = b === 'TLAPS' ? 'b-live' : b === 'DHG' ? 'b-draft' : 'b-other';
+    return `<span class="ml-badge ${k}">${escapeHtml(b)}</span>`;
+  }
+  function statusBadge(s) {
+    if (!s) return '';
+    const k = s === 'live' ? 'b-live' : s === 'nis_pending' ? 'b-nis' : 'b-draft';
+    return `<span class="ml-badge ${k}">${escapeHtml(s)}</span>`;
+  }
+  function pctClass(p) {
+    if (p == null) return 'grey';
+    if (p >= 100) return 'green';
+    if (p >= 67)  return 'green';
+    if (p >= 33)  return 'yellow';
+    if (p > 0)    return 'red';
+    return 'grey';
+  }
+  function ckRow(r) {
+    const tf = (b) => `<span class="${b ? 'ck-y' : 'ck-n'}">${b ? '☑' : '☐'}</span>`;
+    return `<span class="ck-row" title="basic / comp / life / video / A+ / reviews&ge;10">${tf(r.c1_basic_listing)} ${tf(r.c2_comparison_image)} ${tf(r.c3_lifestyle_image)} ${tf(r.c4_video)} ${tf(r.c5_aplus)} ${tf(r.c6_reviews_min10)}</span>`;
+  }
+  function fmt$(v) { return v == null ? '—' : '$' + Number(v).toFixed(2); }
+  function fmtPct(v) { return v == null ? '—' : Number(v).toFixed(1) + '%'; }
+
+  function render() {
+    const tbody = document.getElementById('tbody');
+    document.getElementById('row-count').textContent = state.filtered.length + ' of ' + state.all.length + ' rows';
+    if (!state.filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="11" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
+      return;
     }
-  })();
+    tbody.innerHTML = state.filtered.map(r => {
+      const p = Number(r.completion_pct || 0);
+      const cls = pctClass(p);
+      return ''
+        + '<tr>'
+        +   '<td class="mono">' + escapeHtml(r.tlaps_sku || '') + '</td>'
+        +   '<td class="mono tiny">' + escapeHtml(r.dhg_sku || '') + '</td>'
+        +   '<td class="mono tiny">' + escapeHtml(r.asin || '') + '</td>'
+        +   '<td>' + brandBadge(r.brand) + '</td>'
+        +   '<td class="tiny">' + escapeHtml(r.category || '—') + '</td>'
+        +   '<td>' + statusBadge(r.status) + '</td>'
+        +   '<td class="mono text-right">' + fmt$(r.map_price) + '</td>'
+        +   '<td class="mono text-right">' + fmt$(r.vc_cost) + '</td>'
+        +   '<td class="mono text-right">' + fmtPct(r.margin_pct_vc) + '</td>'
+        +   '<td><span class="pct-bar ' + cls + '"><div style="width:' + p + '%"></div></span><span class="tiny">' + p.toFixed(0) + '%</span></td>'
+        +   '<td>' + ckRow(r) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function renderStats() {
+    const rows = state.filtered;
+    const total = rows.length;
+    const tlaps = rows.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-')).length;
+    const live = rows.filter(r => r.status === 'live').length;
+    const complete = rows.filter(r => r.is_complete).length;
+    const avgPct = rows.length ? (rows.reduce((s,r)=>s+Number(r.completion_pct||0),0) / rows.length) : 0;
+    const html = ''
+      + '<div class="stat"><div class="label">SKUs (filtered)</div><div class="value">' + total + '</div></div>'
+      + '<div class="stat"><div class="label">TLAPS-prefixed</div><div class="value">' + tlaps + '</div></div>'
+      + '<div class="stat"><div class="label">Live</div><div class="value">' + live + '</div></div>'
+      + '<div class="stat"><div class="label">100% complete</div><div class="value">' + complete + '</div></div>'
+      + '<div class="stat"><div class="label">Avg completion</div><div class="value">' + avgPct.toFixed(1) + '%</div></div>';
+    document.getElementById('stats').innerHTML = html;
+  }
+
+  function exportCSV() {
+    const cols = ['tlaps_sku','dhg_sku','asin','brand','category','status','map_price','vc_cost','i3_cost','margin_pct_vc','completion_pct','criteria_met','c1_basic_listing','c2_comparison_image','c3_lifestyle_image','c4_video','c5_aplus','c6_reviews_min10','live_review_count','gen_title'];
+    const escape = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lines = [cols.join(',')];
+    state.filtered.forEach(r => lines.push(cols.map(c => escape(r[c])).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('CSV exported (' + state.filtered.length + ' rows)', 'success');
+  }
+
+  function exportXLSX() {
+    const sheet = XLSX.utils.json_to_sheet(state.filtered);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, 'Products');
+    XLSX.writeFile(wb, 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    toast('XLSX exported (' + state.filtered.length + ' rows)', 'success');
+  }
 </script>
 </body>
 </html>
