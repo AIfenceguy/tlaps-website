@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { id: 'dashboard',  label: 'Dashboard',        icon: 'D', href: 'dashboard.html'  },
   { id: 'products',   label: 'Products',         icon: 'P', href: 'products.html'   },
   { id: 'variations', label: 'Variations',       icon: 'V', href: 'variations.html' },
+  { id: 'nis',        label: 'NIS Readiness',    icon: 'N', href: 'nis-readiness.html' },
   { id: 'labels',     label: 'Labels',           icon: 'L', href: 'labels.html'     },
   { id: 'orders',     label: 'Orders',           icon: 'O', href: 'orders.html'     },
   { id: 'pablo',      label: 'Receiving (Pablo)',icon: 'R', href: 'pablo.html'      },

@@ -67,6 +67,16 @@
     </section>
 
     <section class="section">
+      <div class="dash-card" style="border-left:4px solid var(--green)">
+        <h3>NIS Submission Readiness</h3>
+        <div class="kpi-grid" id="nis-readiness" style="margin-bottom:0">
+          <div class="kpi"><div class="label">Loading...</div></div>
+        </div>
+        <div class="stamp" style="margin-top:10px"><a href="nis-readiness.html">Open NIS Readiness module &rarr;</a></div>
+      </div>
+    </section>
+
+    <section class="section">
       <div class="dash-grid">
         <div class="dash-card">
           <h3>Completion distribution (TLAPS-prefixed)</h3>
@@ -124,6 +134,33 @@
     } catch (e) {
       console.error(e);
       toast('Load failed: ' + e.message, 'error');
+    }
+    renderNisReadiness();  // independent: tolerates v_nis_readiness not existing yet
+  }
+
+  async function renderNisReadiness() {
+    const el = document.getElementById('nis-readiness');
+    try {
+      const rows = await sbGet('v_nis_readiness?select=blocker,col_e,upc,item_length_in,slot_status,nis_ready&limit=2000');
+      const N = rows.length || 1;
+      const ready = rows.filter(r => r.blocker === 'ready').length;
+      const noUpc = rows.filter(r => !r.upc).length;
+      const noCost = rows.filter(r => r.col_e == null).length;
+      const noDims = rows.filter(r => r.item_length_in == null).length;
+      const imgInc = rows.filter(r => r.blocker === 'images incomplete').length;
+      const slotsFilled = rows.reduce((s, r) => {
+        const ss = r.slot_status || {};
+        return s + ['MAIN','PT01','PT02','PT03','PT04','PT05'].filter(k => ss[k] && ss[k].filled).length;
+      }, 0);
+      el.innerHTML =
+        kpi('Ready to submit', ready + ' / ' + rows.length, 'all blockers clear') +
+        kpi('Missing UPC', noUpc, 'assign from pool') +
+        kpi('Missing cost', noCost, 'await Raymond col_e') +
+        kpi('Missing dims', noDims, 'item length unset') +
+        kpi('Images incomplete', imgInc, '< 6 slots') +
+        kpi('Image slots', slotsFilled + ' / ' + (rows.length * 6), 'filled');
+    } catch (e) {
+      el.innerHTML = '<div class="kpi"><div class="label">NIS view unavailable</div><div class="sub">Run migration 2026-05-23_nis_readiness.sql, then scripts 50-53.</div></div>';
     }
   }
 

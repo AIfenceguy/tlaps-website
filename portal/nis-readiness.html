@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIS Readiness — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+  .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-bottom:16px; }
+  .stat { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:12px 14px; }
+  .stat .label { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:600; }
+  .stat .value { font-size:22px; font-weight:700; color:var(--green); margin-top:2px; font-variant-numeric:tabular-nums; }
+  .chip-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .chip { padding:4px 12px; border:1px solid var(--border); border-radius:14px; background:var(--bg-card); cursor:pointer; font-size:12px; font-weight:600; color:var(--text-muted); user-select:none; }
+  .chip:hover { border-color:var(--green); color:var(--green); }
+  .chip.active { background:var(--green); border-color:var(--green); color:#fff; }
+  .internal-badge { display:inline-block; padding:0 5px; border-radius:3px; font-size:8px; font-weight:700; letter-spacing:.05em; background:#e5e7eb; color:#6b7280; vertical-align:middle; margin-left:4px; }
+  .dhg-dim { color:var(--text-muted); opacity:.7; font-size:11px; }
+  .b-ready{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+  .b-block{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+  .b-img{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+  .blk{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:700}
+  .role{display:inline-block;padding:0 5px;border-radius:8px;font-size:9px;font-weight:700}
+  .r-parent{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+  .r-child{background:#f0f9ff;color:#075985;border:1px solid #bae6fd}
+  .r-solo{background:#f3f4f6;color:#374151;border:1px solid #d1d5db}
+  .margin-green{color:#15803d;font-weight:700}.margin-yellow{color:#a16207;font-weight:700}.margin-red{color:#b91c1c;font-weight:700}
+  /* modal */
+  .ovl{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:1000;overflow:auto;padding:24px}
+  .ovl.open{display:flex}
+  .panel{background:var(--bg-card);border-radius:8px;max-width:920px;width:100%;box-shadow:var(--shadow-lg)}
+  .panel .ph{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-card);border-radius:8px 8px 0 0}
+  .panel .pb{padding:20px 22px}
+  .blk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+  .slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .slot{border:1px solid var(--border);border-radius:6px;padding:10px;background:var(--bg)}
+  .slot h5{font-size:11px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .slot pre{white-space:pre-wrap;font-size:10px;line-height:1.4;background:#fff;border:1px solid var(--border);border-radius:4px;padding:8px;max-height:170px;overflow:auto;color:var(--text)}
+  .slot .filled{font-size:11px;color:#15803d;font-weight:600}
+  .lock-note{font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:6px 10px;margin-top:6px}
+  .upc-tracker summary{cursor:pointer;font-weight:700;color:var(--green)}
+  .x{cursor:pointer;font-size:20px;color:var(--text-muted);background:none;border:none}
+  .field-mini label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:600;margin-bottom:3px}
+  .field-mini input{width:100%;padding:6px 8px;border:1px solid var(--border-dark);border-radius:4px;font:inherit;font-size:13px}
+  .field-mini input:disabled{background:#f3f4f6;color:#9ca3af}
+</style>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>NIS Readiness — TLAPS Launch</h1>
+        <div class="subtitle">Everything required to upload a clean Vendor Central listing, one row per SKU · live from tlaps-prod</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section class="section">
+      <details class="card upc-tracker" id="upc-tracker">
+        <summary>UPC Pool</summary>
+        <div id="upc-body" class="mt-12 tiny">Loading…</div>
+      </details>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="chip-row" id="chips">
+          <button class="chip active" data-f="all">All</button>
+          <button class="chip" data-f="ready">Ready</button>
+          <button class="chip" data-f="missing UPC">Missing UPC</button>
+          <button class="chip" data-f="missing cost">Missing cost</button>
+          <button class="chip" data-f="missing dims">Missing dims</button>
+          <button class="chip" data-f="images incomplete">Images incomplete</button>
+          <button class="chip" data-f="parent">Parents</button>
+          <button class="chip" data-f="child">Children</button>
+          <button class="chip" data-f="solo">Standalone</button>
+        </div>
+        <input type="search" id="search" class="form-input mb-12" placeholder="Search SKU / ASIN / UPC…" style="max-width:360px">
+        <div class="row-count tiny muted" id="rowcount"></div>
+        <div style="max-height:62vh;overflow:auto;border:1px solid var(--border);border-radius:4px">
+          <table class="data-table compact" style="margin:0;min-width:1150px">
+            <thead>
+              <tr>
+                <th>TLAPS SKU</th><th>DHG SKU</th><th>UPC</th>
+                <th class="text-right">MAP</th><th class="text-right">i3 cost</th>
+                <th class="text-right">VC cost</th><th class="text-right">Net I3</th>
+                <th class="text-right">Margin</th><th class="text-right">Pack</th>
+                <th class="text-right">Wt</th><th>Dims</th><th class="text-center">Imgs</th>
+                <th>Blocker</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"><tr><td colspan="14" class="text-center muted" style="padding:30px">Loading from tlaps-prod…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- detail modal -->
+<div class="ovl" id="ovl"><div class="panel" id="panel"></div></div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('nis');
+
+  const SLOTS = ['MAIN','PT01','PT02','PT03','PT04','PT05'];
+  const state = { rows: [], filter: 'all', search: '' };
+
+  document.getElementById('btn-refresh').addEventListener('click', load);
+  document.getElementById('search').addEventListener('input', e => { state.search = e.target.value.toLowerCase(); render(); });
+  document.querySelectorAll('#chips .chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('#chips .chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active'); state.filter = c.dataset.f; render();
+  }));
+  document.getElementById('ovl').addEventListener('click', e => { if (e.target.id === 'ovl') closeModal(); });
+
+  load();
+
+  async function load() {
+    try {
+      state.rows = await sbGet('v_nis_readiness?select=*&order=blocker.asc,tlaps_sku.asc&limit=2000');
+      renderStats(); render(); loadUpcTracker();
+    } catch (e) {
+      console.error(e);
+      document.getElementById('tbody').innerHTML =
+        `<tr><td colspan="14" class="text-center" style="color:var(--error);padding:30px">Failed to load tlaps-prod. ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  // ---- helpers ----
+  const money = v => (v == null || isNaN(v)) ? '—' : '$' + Number(v).toFixed(2);
+  const num = v => (v == null || v === '') ? null : Number(v);
+  function role(r){ return r.is_parent ? 'parent' : (r.parent_tlaps_sku ? 'child' : 'solo'); }
+  function marginPct(r){ const net=num(r.net_to_i3_calc), i3=num(r.i3_cost_calc); return (net && net>0 && i3!=null) ? (net-i3)/net*100 : null; }
+  function marginCls(m){ return m==null?'':(m<40?'margin-red':(m<60?'margin-yellow':'margin-green')); }
+  function filledSlots(ss){ if(!ss) return 0; return SLOTS.filter(s => ss[s] && ss[s].filled).length; }
+
+  function renderStats() {
+    const N = state.rows.length;
+    const ready = state.rows.filter(r => r.blocker === 'ready').length;
+    const cost = state.rows.filter(r => r.col_e != null).length;
+    const dims = state.rows.filter(r => r.item_length_in != null).length;
+    const upc = state.rows.filter(r => r.upc).length;
+    const slots = state.rows.reduce((s, r) => s + filledSlots(r.slot_status), 0);
+    const stat = (l, v, d) => `<div class="stat"><div class="label">${l}</div><div class="value">${v}</div><div class="tiny muted">${d}</div></div>`;
+    document.getElementById('stats').innerHTML =
+      stat('SKUs Ready', `${ready} / ${N}`, 'all blockers clear') +
+      stat('Cost Complete', `${cost} / ${N}`, 'col_e set') +
+      stat('Dimensions', `${dims} / ${N}`, 'item length set') +
+      stat('UPCs Assigned', `${upc} / ${N}`, 'products.upc') +
+      stat('Image Slots', `${slots} / ${N * 6}`, 'filled across 6 slots');
+  }
+
+  function render() {
+    const f = state.filter, q = state.search;
+    let rows = state.rows.filter(r => {
+      if (f === 'ready' && r.blocker !== 'ready') return false;
+      if (['missing UPC','missing cost','missing dims','images incomplete'].includes(f) && r.blocker !== f) return false;
+      if (['parent','child','solo'].includes(f) && role(r) !== f) return false;
+      if (q) {
+        const hay = `${r.tlaps_sku} ${r.dhg_sku||''} ${r.asin||''} ${r.upc||''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    document.getElementById('rowcount').textContent = `${rows.length} of ${state.rows.length} SKUs`;
+
+    const blk = b => {
+      const cls = b === 'ready' ? 'b-ready' : (b === 'images incomplete' ? 'b-img' : 'b-block');
+      return `<span class="blk ${cls}">${b}</span>`;
+    };
+    document.getElementById('tbody').innerHTML = rows.map((r, i) => {
+      const m = marginPct(r);
+      const dims = (r.item_length_in != null)
+        ? `${r.item_length_in}×${r.item_width_in ?? '?'}×${r.item_height_in ?? '?'}` : '<span class="muted">—</span>';
+      const ro = role(r);
+      return `<tr class="clickable" data-sku="${escapeHtml(r.tlaps_sku)}">
+        <td class="mono">${escapeHtml(r.tlaps_sku)} <span class="role r-${ro}">${ro[0].toUpperCase()}</span></td>
+        <td><span class="dhg-dim mono">${escapeHtml(r.dhg_sku||'—')}</span><span class="internal-badge">INTERNAL</span></td>
+        <td class="mono">${r.upc ? escapeHtml(r.upc) : '<span style="color:#b91c1c">—</span>'}</td>
+        <td class="mono text-right">${money(r.map_price)}</td>
+        <td class="mono text-right">${money(r.i3_cost_calc)}</td>
+        <td class="mono text-right">${money(r.vc_cost_calc)}</td>
+        <td class="mono text-right">${money(r.net_to_i3_calc)}</td>
+        <td class="mono text-right ${marginCls(m)}">${m==null?'—':m.toFixed(1)+'%'}</td>
+        <td class="mono text-right">${r.pack_qty ?? '—'}</td>
+        <td class="mono text-right">${r.item_weight_lb!=null?r.item_weight_lb:'—'}</td>
+        <td class="mono">${dims}</td>
+        <td class="text-center mono">${filledSlots(r.slot_status)}/6</td>
+        <td>${blk(r.blocker)}</td>
+        <td><button class="btn btn-ghost" style="padding:3px 10px;font-size:11px" data-open="${escapeHtml(r.tlaps_sku)}">Open</button></td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="14" class="text-center muted" style="padding:24px">No SKUs match.</td></tr>`;
+
+    document.querySelectorAll('[data-open],tr[data-sku]').forEach(el => {
+      el.addEventListener('click', ev => { ev.stopPropagation(); openModal(el.dataset.open || el.dataset.sku); });
+    });
+  }
+
+  // ---- modal ----
+  function openModal(sku) {
+    const r = state.rows.find(x => x.tlaps_sku === sku);
+    if (!r) return;
+    const live = (r.status || '').toLowerCase() === 'live';
+    const m = marginPct(r);
+    const ss = r.slot_status || {};
+    const hp = r.higgsfield_prompts || {};
+
+    const slotTiles = SLOTS.map(slot => {
+      const cell = ss[slot] || {};
+      if (cell.filled) {
+        return `<div class="slot"><h5>${slot} <span class="filled">scraped${cell.use_scraped?' ✓':''}</span></h5>
+          <div class="tiny mono" style="word-break:break-all">${escapeHtml(cell.src||'(on disk)')}</div></div>`;
+      }
+      const prompt = hp[slot];
+      return `<div class="slot"><h5>${slot} <span style="color:#b91c1c">missing</span>
+          ${prompt?`<button class="btn btn-ghost" style="padding:1px 8px;font-size:10px" data-copy="${slot}">Copy</button>`:''}</h5>
+        ${prompt?`<pre id="pr-${slot}">${escapeHtml(prompt)}</pre>`:'<div class="tiny muted">No prompt yet — run script 53.</div>'}</div>`;
+    }).join('');
+
+    document.getElementById('panel').innerHTML = `
+      <div class="ph">
+        <div>
+          <div style="font-size:17px;font-weight:700;color:var(--green)">${escapeHtml(r.tlaps_sku)}</div>
+          <div class="tiny muted">${escapeHtml(r.variation_theme||'')} ${r.variation_value?('· '+escapeHtml(r.variation_value)):''} · status: <strong>${escapeHtml(r.status||'—')}</strong></div>
+        </div>
+        <button class="x" id="x">×</button>
+      </div>
+      <div class="pb">
+        <!-- A. identity -->
+        <div class="section"><h2>Identity</h2>
+          <div class="blk-grid">
+            <div><div class="tiny muted">DHG SKU <span class="internal-badge">INTERNAL</span></div><div class="mono dhg-dim">${escapeHtml(r.dhg_sku||'—')}</div></div>
+            <div><div class="tiny muted">DHG ASIN (clone source)</div><div class="mono">${escapeHtml(r.asin||'—')}</div></div>
+            <div><div class="tiny muted">TLAPS UPC</div><div class="mono">${r.upc?escapeHtml(r.upc):'<span style="color:#b91c1c">none — assign</span>'}</div></div>
+            <div><div class="tiny muted">Family</div><div class="mono">${escapeHtml(r.family_id||'standalone')}</div></div>
+          </div>
+        </div>
+
+        <!-- B. costs -->
+        <div class="section"><h2>Costs</h2>
+          <div class="blk-grid">
+            <div class="field-mini"><label>DHG col_e</label><input type="number" step="0.0001" id="f-col_e" value="${r.col_e ?? ''}"></div>
+            <div class="field-mini"><label>MAP</label><input type="number" step="0.01" id="f-map_price" value="${r.map_price ?? ''}"></div>
+            <div class="field-mini"><label>Qty multiplier</label><input type="number" step="0.001" id="f-qty_multiplier" value="${r.qty_multiplier ?? 1}" ${live?'disabled':''}></div>
+            <div class="field-mini"><label>Savings discount</label><input type="number" step="0.01" id="f-savings_discount" value="${r.savings_discount ?? 0}" ${live?'disabled':''}></div>
+          </div>
+          <div class="blk-grid">
+            <div class="stat"><div class="label">i3 cost (×1.20)</div><div class="value" id="o-i3">${money(r.i3_cost_calc)}</div></div>
+            <div class="stat"><div class="label">VC cost (×0.78)</div><div class="value" id="o-vc">${money(r.vc_cost_calc)}</div></div>
+            <div class="stat"><div class="label">Net to I3</div><div class="value" id="o-net">${money(r.net_to_i3_calc)}</div></div>
+            <div class="stat"><div class="label">Margin</div><div class="value ${marginCls(m)}" id="o-margin">${m==null?'—':m.toFixed(1)+'%'}</div></div>
+            <div class="stat"><div class="label">Suggested list price</div><div class="value" id="o-list">${money(r.suggested_list_price)}</div></div>
+          </div>
+          ${live?'<div class="lock-note">List price is LOCKED — this SKU is live. Per CLAUDE.md Rule 2, never resubmit list_price / qty multiplier / savings on a live SKU.</div>':''}
+          <div class="text-right mt-12"><button class="btn btn-primary" id="save-costs">Save costs</button></div>
+        </div>
+
+        <!-- C. pack + physical -->
+        <div class="section"><h2>Pack &amp; Physical</h2>
+          <div class="blk-grid">
+            <div class="field-mini"><label>Pack qty</label><input type="number" id="f-pack_qty" value="${r.pack_qty ?? ''}"></div>
+            <div class="field-mini"><label>Pack size label</label><input type="text" id="f-pack_size_label" value="${escapeHtml(r.pack_size_label||'')}"></div>
+            <div class="field-mini"><label>Item weight (lb)</label><input type="number" step="0.001" id="f-item_weight_lb" value="${r.item_weight_lb ?? ''}"></div>
+            <div class="field-mini"><label>Case weight (lb)</label><input type="number" step="0.001" id="f-case_weight_lb" value="${r.case_weight_lb ?? ''}"></div>
+            <div class="field-mini"><label>Item L×W×H (in)</label><input type="text" id="f-item_dims" value="${[r.item_length_in,r.item_width_in,r.item_height_in].map(x=>x??'').join(' x ')}"></div>
+            <div class="field-mini"><label>Case L×W×H (in)</label><input type="text" id="f-case_dims" value="${[r.case_length_in,r.case_width_in,r.case_height_in].map(x=>x??'').join(' x ')}"></div>
+          </div>
+          <div class="text-right mt-12"><button class="btn btn-primary" id="save-pack">Save pack</button></div>
+        </div>
+
+        <!-- D. images -->
+        <div class="section"><h2>Image Inventory (${filledSlots(ss)}/6)</h2>
+          <div class="slot-grid">${slotTiles}</div>
+        </div>
+
+        <!-- E. actions -->
+        <div class="section"><h2>Actions</h2>
+          <div class="row-actions">
+            ${!r.upc?'<button class="btn btn-secondary" id="act-upc">Assign UPC</button>':''}
+            ${(r.blocker==='ready'&&!r.nis_ready)?'<button class="btn btn-primary" id="act-ready">Mark NIS-ready</button>':''}
+            ${r.nis_ready?'<span class="blk b-ready">NIS-ready ✓</span>':''}
+            <button class="btn btn-ghost" id="act-export">Export NIS row (CSV)</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('ovl').classList.add('open');
+    wireModal(r, live);
+  }
+
+  function wireModal(r, live) {
+    document.getElementById('x').addEventListener('click', closeModal);
+
+    // copy higgsfield prompts
+    document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+      const pre = document.getElementById('pr-' + b.dataset.copy);
+      if (pre) copyToClipboard(pre.textContent);
+    }));
+
+    // live cost recompute (mirror generated columns)
+    const get = id => num(document.getElementById(id).value);
+    function recompute() {
+      const colE = get('f-col_e'), map = get('f-map_price') || 0;
+      const qm = get('f-qty_multiplier') || 1, sav = get('f-savings_discount') || 0;
+      const i3 = (colE != null ? colE : map * 0.30) * 1.20;
+      const vc = map * qm * 0.78, net = map * 0.6084, list = map * qm - sav;
+      const mg = net > 0 ? (net - i3) / net * 100 : null;
+      document.getElementById('o-i3').textContent = money(i3);
+      document.getElementById('o-vc').textContent = money(vc);
+      document.getElementById('o-net').textContent = money(net);
+      document.getElementById('o-list').textContent = money(list);
+      const me = document.getElementById('o-margin');
+      me.textContent = mg == null ? '—' : mg.toFixed(1) + '%';
+      me.className = 'value ' + marginCls(mg);
+    }
+    ['f-col_e','f-map_price','f-qty_multiplier','f-savings_discount'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.addEventListener('input', recompute);
+    });
+
+    document.getElementById('save-costs').addEventListener('click', async () => {
+      const payload = { tlaps_sku: r.tlaps_sku, col_e: get('f-col_e'), map_price: get('f-map_price') };
+      if (!live) { payload.qty_multiplier = get('f-qty_multiplier'); payload.savings_discount = get('f-savings_discount'); }
+      await saveRow(payload, 'Costs saved');
+    });
+
+    document.getElementById('save-pack').addEventListener('click', async () => {
+      const dims = s => { const p = (document.getElementById(s).value||'').split(/[x×]/i).map(t=>num(t.trim())); return p; };
+      const id = dims('f-item_dims'), cd = dims('f-case_dims');
+      await saveRow({
+        tlaps_sku: r.tlaps_sku,
+        pack_qty: get('f-pack_qty'),
+        pack_size_label: document.getElementById('f-pack_size_label').value || null,
+        item_weight_lb: get('f-item_weight_lb'), case_weight_lb: get('f-case_weight_lb'),
+        item_length_in: id[0]??null, item_width_in: id[1]??null, item_height_in: id[2]??null,
+        case_length_in: cd[0]??null, case_width_in: cd[1]??null, case_height_in: cd[2]??null
+      }, 'Pack saved');
+    });
+
+    const upcBtn = document.getElementById('act-upc');
+    if (upcBtn) upcBtn.addEventListener('click', () => assignUpc(r));
+    const readyBtn = document.getElementById('act-ready');
+    if (readyBtn) readyBtn.addEventListener('click', async () => { await saveRow({ tlaps_sku: r.tlaps_sku, nis_ready: true }, 'Marked NIS-ready'); });
+    document.getElementById('act-export').addEventListener('click', () => exportNisRow(r));
+  }
+
+  async function saveRow(payload, okMsg) {
+    try {
+      await sbUpsert('products', payload, 'tlaps_sku');
+      const fresh = await sbGet('v_nis_readiness?select=*&tlaps_sku=eq.' + encodeURIComponent(payload.tlaps_sku));
+      if (fresh && fresh[0]) {
+        const i = state.rows.findIndex(x => x.tlaps_sku === payload.tlaps_sku);
+        if (i >= 0) state.rows[i] = fresh[0];
+        toast(okMsg, 'success');
+        renderStats(); render(); openModal(payload.tlaps_sku);
+      }
+    } catch (e) { toast('Save failed: ' + e.message, 'error'); }
+  }
+
+  async function assignUpc(r) {
+    try {
+      const avail = await sbGet('upc_pool?select=upc&status=eq.available&order=upc.asc&limit=1');
+      if (!avail || !avail.length) return toast('No available UPCs in pool', 'error');
+      const upc = avail[0].upc;
+      await sbUpsert('products', { tlaps_sku: r.tlaps_sku, upc }, 'tlaps_sku');
+      await sbUpsert('upc_pool', { upc, status: 'reserved', assigned_to_tlaps_sku: r.tlaps_sku }, 'upc');
+      toast('Assigned UPC ' + upc, 'success');
+      await load(); openModal(r.tlaps_sku);
+    } catch (e) { toast('Assign failed: ' + e.message, 'error'); }
+  }
+
+  function exportNisRow(r) {
+    const fields = ['tlaps_sku','dhg_sku','asin','upc','map_price','col_e','i3_cost_calc','vc_cost_calc',
+      'net_to_i3_calc','qty_multiplier','savings_discount','suggested_list_price','pack_qty','pack_size_label',
+      'item_weight_lb','case_weight_lb','item_length_in','item_width_in','item_height_in',
+      'case_length_in','case_width_in','case_height_in','status','nis_ready','blocker'];
+    const esc = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+    const csv = fields.join(',') + '\r\n' + fields.map(f => esc(r[f])).join(',') + '\r\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `NIS-${r.tlaps_sku}.csv`; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+
+  function closeModal() { document.getElementById('ovl').classList.remove('open'); }
+
+  async function loadUpcTracker() {
+    try {
+      const all = await sbGet('upc_pool?select=status&limit=5000');
+      const c = { available: 0, reserved: 0, live: 0 };
+      all.forEach(r => { c[r.status] = (c[r.status] || 0) + 1; });
+      const next = await sbGet('upc_pool?select=upc&status=eq.available&order=upc.asc&limit=10');
+      document.getElementById('upc-body').innerHTML =
+        `Total <strong>${all.length}</strong> · Live <strong>${c.live}</strong> · Reserved <strong>${c.reserved}</strong> · Available <strong>${c.available}</strong><br>
+         Next 10 to assign: <span class="mono">${next.map(x=>x.upc).join(', ')||'—'}</span>`;
+    } catch (e) {
+      document.getElementById('upc-body').innerHTML = `<span style="color:var(--error)">UPC pool not available (run migration). ${escapeHtml(e.message)}</span>`;
+    }
+  }
+</script>
+</body>
+</html>
