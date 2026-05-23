@@ -7,94 +7,94 @@
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="../images/favicon.ico">
 <link rel="stylesheet" href="assets/portal.css">
+<style>
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; box-shadow: var(--shadow-sm); }
+  .dash-card h3 { margin: 0 0 14px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); border-bottom: 2px solid var(--green); padding-bottom: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; }
+  .bar-row .lbl { width: 130px; flex-shrink: 0; }
+  .bar-row .bar { flex: 1; height: 16px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+  .bar-row .bar > div { height: 100%; background: var(--green); transition: width .3s; }
+  .bar-row .bar.red    > div { background: #b91c1c; }
+  .bar-row .bar.yellow > div { background: #a16207; }
+  .bar-row .bar.green  > div { background: #15803d; }
+  .bar-row .bar.grey   > div { background: #9ca3af; }
+  .bar-row .n { width: 50px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .kpi { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .kpi .label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+  .kpi .value { font-size: 28px; font-weight: 700; color: var(--green); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpi .sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .mini-table { width: 100%; font-size: 12px; }
+  .mini-table td { padding: 4px 8px; border-top: 1px solid #f3f4f6; }
+  .mini-table tr:first-child td { border-top: 0; }
+  .mini-table .mono { font-family: 'SF Mono', Consolas, monospace; }
+  .mini-table .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .pill-red    { background: #fee2e2; color: #b91c1c; }
+  .pill-yellow { background: #fef3c7; color: #92400e; }
+  .pill-green  { background: #dcfce7; color: #15803d; }
+  .stamp { font-size: 11px; color: var(--text-muted); }
+</style>
 </head>
 <body>
 <div class="portal-layout">
   <nav class="sidebar"></nav>
-
   <main class="main">
     <div class="main-header">
       <div>
         <h1>Dashboard</h1>
-        <div class="subtitle">TLAPS / DHG / I3 Enterprise — daily ops hub</div>
+        <div class="subtitle">Live snapshot from tlaps-prod &middot; reload to refresh</div>
       </div>
-      <div class="muted" id="today"></div>
-    </div>
-
-    <div class="quick-actions">
-      <a href="labels.html"   class="btn btn-primary">⬚ Process Labels</a>
-      <a href="orders.html"   class="btn btn-primary">▤ New DHG PO</a>
-      <a href="costs.html"    class="btn btn-secondary">$ Check Margins</a>
-      <a href="products.html" class="btn btn-ghost">▦ View Products</a>
-    </div>
-
-    <div class="stat-grid" id="stat-grid">
-      <div class="stat-card"><div class="label">Active SKUs</div><div class="value" id="s-skus">—</div><div class="delta">All launch products</div></div>
-      <div class="stat-card"><div class="label">Videos Uploaded</div><div class="value" id="s-video">—</div><div class="delta">of 10</div></div>
-      <div class="stat-card"><div class="label">A+ Submitted</div><div class="value" id="s-aplus">—</div><div class="delta">of 10</div></div>
-      <div class="stat-card"><div class="label">Costs Confirmed</div><div class="value" id="s-cost">—</div><div class="delta">DHG cost from Raymond</div></div>
-      <div class="stat-card"><div class="label">Saved POs</div><div class="value" id="s-pos">—</div><div class="delta">In local history</div></div>
-    </div>
-
-    <div class="section">
-      <h2>Modules</h2>
-      <div class="card-grid">
-        <a href="products.html" class="module-card">
-          <div class="mc-icon">▦</div>
-          <h3>Product Management</h3>
-          <p>Full SKU catalog with costs, margins, video status, A+ status. Click any product for the detail page.</p>
-        </a>
-        <a href="labels.html" class="module-card">
-          <div class="mc-icon">⬚</div>
-          <h3>Label Processor</h3>
-          <p>Upload PO Excel + label PDF — auto-stamp TLAPS labels with I3 / DHG SKUs. Non-TLAPS pass through.</p>
-        </a>
-        <a href="orders.html" class="module-card">
-          <div class="mc-icon">▤</div>
-          <h3>Orders &amp; PO</h3>
-          <p>Import Amazon stocking POs, auto-generate DHG purchase orders, save history.</p>
-        </a>
-        <a href="costs.html" class="module-card">
-          <div class="mc-icon">$</div>
-          <h3>Costs &amp; Margins</h3>
-          <p>Live P&amp;L calculator for every SKU. MAP × 0.78 × 0.78 = Net to I3, profit and margin per unit.</p>
-        </a>
-        <a href="media.html" class="module-card">
-          <div class="mc-icon">▩</div>
-          <h3>Media Library</h3>
-          <p>Main images, video status, A+ content tracker — single view of all listing assets.</p>
-        </a>
-        <a href="keywords.html" class="module-card">
-          <div class="mc-icon">K</div>
-          <h3>Keywords</h3>
-          <p>Listing titles, backend search terms, keyword suggestion bank for food service / salon / eco angles.</p>
-        </a>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
+        <a class="btn btn-secondary" href="products.html">Products &rarr;</a>
+        <a class="btn btn-secondary" href="costs.html">Margin &rarr;</a>
       </div>
     </div>
 
-    <div class="section">
-      <h2>Quick Reference</h2>
-      <div class="card">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px">
-          <div>
-            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Public Site</div>
-            <div><a href="../index.html" target="_blank">tlapspro.com</a></div>
-          </div>
-          <div>
-            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">DHG Contacts</div>
-            <div class="muted" style="font-size:13px">Raymond (primary) · Wendy · Grace</div>
-          </div>
-          <div>
-            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Print Settings</div>
-            <div class="muted" style="font-size:13px">4×6 paper · 100% scale · no margins · portrait</div>
-          </div>
-          <div>
-            <div class="tiny" style="text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px">Vendor Code Rule</div>
-            <div class="muted" style="font-size:13px">Always create <span class="code">I3ENT</span> first, clone ASIN to <span class="code">I3ENU</span></div>
-          </div>
+    <section class="section">
+      <div class="kpi-grid" id="kpi-grid"></div>
+    </section>
+
+    <section class="section">
+      <div class="dash-card" style="border-left:4px solid var(--gold)">
+        <h3>Launch Status — TLAPS Variations</h3>
+        <div class="kpi-grid" id="launch-status" style="margin-bottom:0">
+          <div class="kpi"><div class="label">Loading...</div></div>
+        </div>
+        <div class="stamp" style="margin-top:10px"><a href="variations.html">Open Variations module &rarr;</a> &middot; 67 families &middot; 257 children &middot; 153 standalone &middot; 220 distinct VC listings to submit</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="dash-grid">
+        <div class="dash-card">
+          <h3>Completion distribution (TLAPS-prefixed)</h3>
+          <div id="completion-dist">Loading&hellip;</div>
+        </div>
+        <div class="dash-card">
+          <h3>Margin distribution (TLAPS-prefixed)</h3>
+          <div id="margin-dist">Loading&hellip;</div>
+        </div>
+        <div class="dash-card">
+          <h3>Thinnest margins (top 10)</h3>
+          <table class="mini-table" id="thin-margin"><tr><td>Loading&hellip;</td></tr></table>
+        </div>
+        <div class="dash-card">
+          <h3>Furthest from complete (top 10 launched)</h3>
+          <table class="mini-table" id="furthest"><tr><td>Loading&hellip;</td></tr></table>
+        </div>
+        <div class="dash-card" style="grid-column:1/-1">
+          <h3>This week's launch shortlist (draft SKUs, by DHG monthly avg desc)</h3>
+          <table class="mini-table" id="shortlist"><tr><td>Loading&hellip;</td></tr></table>
+          <div class="stamp" style="margin-top:8px">25 candidates &mdash; sort by category and pick which to promote. <a href="products.html">Open Products page &rarr;</a></div>
+        </div>
+        <div class="dash-card" style="grid-column:1/-1">
+          <h3>Top categories by SKU count</h3>
+          <div id="cat-dist">Loading&hellip;</div>
         </div>
       </div>
-    </div>
+    </section>
   </main>
 </div>
 
@@ -103,33 +103,164 @@
   requireAuth();
   renderSidebar('dashboard');
 
-  document.getElementById('today').textContent = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  document.getElementById('btn-refresh').addEventListener('click', () => load());
+  load();
 
-  (async () => {
+  async function load() {
     try {
-      const data = await loadSkuMapping(true);
-      const products = data.products;
+      // Pull all SKUs from the completion view (single REST call, sorted client-side)
+      const rows = await sbGet('v_sku_completion?select=*&limit=2000');
+      const tlaps = rows.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-'));
+      const drafts = rows.filter(r => r.status === 'draft');
 
-      const total = products.length;
-      const videosUp = products.filter(p => p.media && p.media.video_status === 'uploaded').length;
-      const aplusUp  = products.filter(p => p.media && (p.media.aplus_status === 'submitted' || p.media.aplus_status === 'live')).length;
-      const costConf = products.filter(p => p.dhg_cost_confirmed).length;
-
-      document.getElementById('s-skus').textContent  = total;
-      document.getElementById('s-video').textContent = videosUp;
-      document.getElementById('s-aplus').textContent = aplusUp;
-      document.getElementById('s-cost').textContent  = costConf;
+      renderKPIs(rows, tlaps);
+      renderLaunchStatus(rows);
+      renderCompletionDist(tlaps);
+      renderMarginDist(tlaps);
+      renderThinnestMargin(rows);
+      renderFurthest(tlaps);
+      renderShortlist(drafts);
+      renderCatDist(rows);
     } catch (e) {
-      toast('Stats failed: ' + e.message, 'error');
+      console.error(e);
+      toast('Load failed: ' + e.message, 'error');
     }
+  }
 
+  function renderKPIs(all, tlaps) {
+    const live = all.filter(r => r.status === 'live').length;
+    const draft = all.filter(r => r.status === 'draft').length;
+    const nis = all.filter(r => r.status === 'nis_pending').length;
+    const complete = all.filter(r => r.is_complete).length;
+    const tlapsAvgCompletion = tlaps.length
+      ? (tlaps.reduce((s, r) => s + Number(r.completion_pct || 0), 0) / tlaps.length).toFixed(1)
+      : 0;
+    const tlapsAvgMargin = tlaps.filter(r => r.margin_pct_vc != null).length
+      ? (tlaps.filter(r => r.margin_pct_vc != null).reduce((s, r) => s + Number(r.margin_pct_vc), 0) / tlaps.filter(r => r.margin_pct_vc != null).length).toFixed(1)
+      : '—';
+    const html = ''
+      + kpi('Total SKUs', all.length, '')
+      + kpi('TLAPS launched', tlaps.length, 'of '+all.length)
+      + kpi('Live', live, 'on Amazon')
+      + kpi('NIS pending', nis, 'in review')
+      + kpi('Draft', draft, 'candidates')
+      + kpi('100% complete', complete, '6/6 criteria')
+      + kpi('TLAPS avg completion', tlapsAvgCompletion + '%', 'criteria met')
+      + kpi('TLAPS avg margin', tlapsAvgMargin + (tlapsAvgMargin === '—' ? '' : '%'), 'on VC cost');
+    document.getElementById('kpi-grid').innerHTML = html;
+  }
+  function kpi(label, value, sub) {
+    return '<div class="kpi"><div class="label">' + label + '</div><div class="value">' + value + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+  }
+
+  async function renderLaunchStatus(allCompletionRows) {
+    // Pull variation columns + upc from products table.
+    let prod = [];
     try {
-      const pos = JSON.parse(localStorage.getItem('tlaps_pos') || '[]');
-      document.getElementById('s-pos').textContent = pos.length;
-    } catch { document.getElementById('s-pos').textContent = 0; }
-  })();
+      prod = await sbGet('products?select=tlaps_sku,family_id,is_parent,parent_tlaps_sku,status,upc&limit=2000');
+    } catch (e) { console.warn('launch status fetch failed:', e.message); }
+    const completionMap = new Map(allCompletionRows.map(r => [r.tlaps_sku, r]));
+    const families = new Set();
+    let children = 0, standalone = 0;
+    let upcAssigned = 0;
+    let contentDone = 0, imagesDone = 0, totalShipping = 0;
+    prod.forEach(p => {
+      if (p.family_id && p.is_parent) families.add(p.family_id);
+      else if (p.family_id && !p.is_parent) children++;
+      else standalone++;
+      if (p.upc) upcAssigned++;
+      const c = completionMap.get(p.tlaps_sku);
+      if (c && !p.is_parent) {
+        totalShipping++;
+        if (c.c1_basic_listing) contentDone++;
+        if (c.c2_comparison_image || c.c3_lifestyle_image) imagesDone++;
+      }
+    });
+    const submitCount = families.size + standalone;
+    const pctContent = totalShipping ? Math.round(contentDone / totalShipping * 100) : 0;
+    const pctImages  = totalShipping ? Math.round(imagesDone  / totalShipping * 100) : 0;
+    document.getElementById('launch-status').innerHTML = ''
+      + kpi('Families',  families.size, 'parents')
+      + kpi('Children',  children, 'variation SKUs')
+      + kpi('Standalone', standalone, 'single ASINs')
+      + kpi('VC listings to submit', submitCount, 'parents + standalones')
+      + kpi('Content %', pctContent + '%', 'title + bullets')
+      + kpi('Images %',  pctImages + '%',  'comparison or lifestyle')
+      + kpi('UPCs locked', upcAssigned, 'of 3,986 in pool');
+  }
+
+  function renderCompletionDist(tlaps) {
+    const buckets = [
+      { label: '100%',   key: 'green',  filter: r => Number(r.completion_pct) === 100 },
+      { label: '67-99%', key: 'green',  filter: r => Number(r.completion_pct) >= 67 && Number(r.completion_pct) < 100 },
+      { label: '33-66%', key: 'yellow', filter: r => Number(r.completion_pct) >= 33 && Number(r.completion_pct) < 67 },
+      { label: '1-32%',  key: 'red',    filter: r => Number(r.completion_pct) >= 1 && Number(r.completion_pct) < 33 },
+      { label: '0%',     key: 'grey',   filter: r => Number(r.completion_pct || 0) === 0 },
+    ];
+    const max = tlaps.length || 1;
+    document.getElementById('completion-dist').innerHTML = buckets.map(b => {
+      const n = tlaps.filter(b.filter).length;
+      const pct = (n / max) * 100;
+      return '<div class="bar-row"><div class="lbl">' + b.label + '</div><div class="bar ' + b.key + '"><div style="width:' + pct + '%"></div></div><div class="n">' + n + '</div></div>';
+    }).join('');
+  }
+
+  function renderMarginDist(tlaps) {
+    const withMargin = tlaps.filter(r => r.margin_pct_vc != null);
+    const buckets = [
+      { label: '>=70%',  key: 'green',  filter: r => Number(r.margin_pct_vc) >= 70 },
+      { label: '60-70%', key: 'green',  filter: r => Number(r.margin_pct_vc) >= 60 && Number(r.margin_pct_vc) < 70 },
+      { label: '40-60%', key: 'yellow', filter: r => Number(r.margin_pct_vc) >= 40 && Number(r.margin_pct_vc) < 60 },
+      { label: '<40%',   key: 'red',    filter: r => Number(r.margin_pct_vc) < 40 },
+    ];
+    const max = withMargin.length || 1;
+    document.getElementById('margin-dist').innerHTML = buckets.map(b => {
+      const n = withMargin.filter(b.filter).length;
+      const pct = (n / max) * 100;
+      return '<div class="bar-row"><div class="lbl">' + b.label + '</div><div class="bar ' + b.key + '"><div style="width:' + pct + '%"></div></div><div class="n">' + n + '</div></div>';
+    }).join('');
+  }
+
+  function renderThinnestMargin(all) {
+    const list = all.filter(r => r.margin_pct_vc != null && (r.tlaps_sku || '').startsWith('TLAPS-'))
+      .sort((a, b) => Number(a.margin_pct_vc) - Number(b.margin_pct_vc)).slice(0, 10);
+    if (!list.length) { document.getElementById('thin-margin').innerHTML = '<tr><td class="muted">No data yet.</td></tr>'; return; }
+    document.getElementById('thin-margin').innerHTML = list.map(r => {
+      const m = Number(r.margin_pct_vc);
+      const cls = m < 40 ? 'pill-red' : m < 60 ? 'pill-yellow' : 'pill-green';
+      return '<tr><td class="mono">' + escapeHtml(r.tlaps_sku) + '</td><td>$' + (r.map_price != null ? Number(r.map_price).toFixed(2) : '—') + '</td><td><span class="pill ' + cls + '">' + m.toFixed(1) + '%</span></td></tr>';
+    }).join('');
+  }
+
+  function renderFurthest(tlaps) {
+    const list = [...tlaps].sort((a, b) => Number(a.completion_pct || 0) - Number(b.completion_pct || 0)).slice(0, 10);
+    document.getElementById('furthest').innerHTML = list.map(r => {
+      const p = Number(r.completion_pct || 0);
+      const cls = p < 33 ? 'pill-red' : p < 67 ? 'pill-yellow' : 'pill-green';
+      return '<tr><td class="mono">' + escapeHtml(r.tlaps_sku) + '</td><td>' + escapeHtml(r.status || '—') + '</td><td><span class="pill ' + cls + '">' + p.toFixed(0) + '%</span></td></tr>';
+    }).join('');
+  }
+
+  function renderShortlist(drafts) {
+    const list = [...drafts].sort((a, b) => Number(b.dhg_monthly_avg || 0) - Number(a.dhg_monthly_avg || 0)).slice(0, 25);
+    if (!list.length) { document.getElementById('shortlist').innerHTML = '<tr><td class="muted">No draft SKUs.</td></tr>'; return; }
+    document.getElementById('shortlist').innerHTML =
+      '<tr style="background:var(--green-pale);font-weight:600"><td>#</td><td>DHG SKU</td><td>ASIN</td><td>Category</td><td>MAP</td><td>Margin %</td></tr>' +
+      list.map((r, i) => {
+        return '<tr><td>' + (i + 1) + '</td><td class="mono">' + escapeHtml(r.dhg_sku || r.tlaps_sku || '') + '</td><td class="mono">' + escapeHtml(r.asin || '') + '</td><td>' + escapeHtml(r.category || '?') + '</td><td>' + (r.map_price != null ? '$' + Number(r.map_price).toFixed(2) : '—') + '</td><td>' + (r.margin_pct_vc != null ? Number(r.margin_pct_vc).toFixed(1) + '%' : '—') + '</td></tr>';
+      }).join('');
+  }
+
+  function renderCatDist(rows) {
+    const counts = {};
+    rows.forEach(r => { const c = r.category || '?'; counts[c] = (counts[c] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+    const max = sorted[0] ? sorted[0][1] : 1;
+    document.getElementById('cat-dist').innerHTML = sorted.map(([cat, n]) => {
+      const pct = (n / max) * 100;
+      return '<div class="bar-row"><div class="lbl" style="width:200px">' + escapeHtml(cat) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="n">' + n + '</div></div>';
+    }).join('');
+  }
 </script>
 </body>
 </html>

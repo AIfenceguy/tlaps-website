@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variations — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+  .vf-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .vf-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .vf-stat .label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.04em; }
+  .vf-stat .value { font-size: 24px; font-weight: 700; color: var(--green); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .vf-stat .sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .vf-stat.gold .value { color: var(--gold); }
+
+  .vf-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 14px; }
+  .vf-tab { padding: 9px 18px; cursor: pointer; border: 0; background: transparent; font-size: 13px; font-weight: 600; color: var(--text-muted); border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .vf-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  .vf-filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 12px; }
+  .vf-filters .field { display: flex; flex-direction: column; gap: 3px; }
+  .vf-filters label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .vf-filters input, .vf-filters select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; background: var(--bg-card); }
+
+  table.vf { width: 100%; border-collapse: collapse; background: var(--bg-card); font-size: 13px; }
+  table.vf th { background: var(--green); color: #fff; text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; position: sticky; top: 0; z-index: 1; }
+  table.vf td { padding: 8px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
+  table.vf tr.family-row { cursor: pointer; }
+  table.vf tr.family-row:hover { background: var(--green-pale); }
+  table.vf tr.family-row.expanded { background: var(--green-pale); }
+  table.vf tr.child-row { background: #fafbfa; font-size: 12px; }
+  table.vf tr.child-row td { padding: 6px 10px; border-top: 1px dashed #e5e7eb; }
+  table.vf tr.child-row td:first-child { padding-left: 32px; }
+  table.vf tr.child-row td.dhg-internal { color: #9ca3af; font-size: 10px; }
+  table.vf .caret { display: inline-block; width: 14px; color: var(--green); font-weight: 700; transition: transform 0.15s; }
+  table.vf tr.expanded .caret { transform: rotate(90deg); }
+  .mono { font-family: 'SF Mono', Consolas, monospace; }
+  .tiny { font-size: 11px; }
+
+  .vf-theme  { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10px; font-weight: 700; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+  .vf-family { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+  .pct-bar { display: inline-block; width: 80px; height: 9px; background: #e5e7eb; border-radius: 5px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+  .pct-bar > div { height: 100%; background: var(--green); transition: width 0.2s; }
+  .pct-bar.red    > div { background: #b91c1c; }
+  .pct-bar.yellow > div { background: #a16207; }
+  .pct-bar.green  > div { background: #15803d; }
+  .pct-bar.grey   > div { background: #9ca3af; }
+
+  .badge-ready { background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 1px 7px; border-radius: 9px; font-size: 10px; font-weight: 700; }
+  .badge-wait  { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; padding: 1px 7px; border-radius: 9px; font-size: 10px; font-weight: 700; }
+  .badge-int   { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; padding: 1px 6px; border-radius: 9px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .row-count { font-size: 12px; color: var(--text-muted); margin: 6px 0; }
+  .vf-empty { padding: 30px; text-align: center; color: var(--text-muted); }
+  .vf-link  { color: var(--green); cursor: pointer; }
+  .vf-link:hover { text-decoration: underline; }
+
+  /* UPC pool box */
+  .upc-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .upc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .upc-card .label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.04em; }
+  .upc-card .value { font-size: 22px; font-weight: 700; color: var(--green); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .upc-card .sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .upc-next { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; color: var(--text); margin-top: 4px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Variation Families</h1>
+        <div class="subtitle">TLAPS Launch &middot; max 6 children per parent &middot; 220 distinct VC listings to submit</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-refresh">Refresh</button>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="vf-stats" id="vf-stats"></div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <h2 style="font-size:14px;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.06em;color:var(--green)">UPC Pool (TLAPS GS1)</h2>
+        <div class="upc-box" id="upc-box"><div class="upc-card"><div class="label">Loading...</div></div></div>
+        <div class="upc-next" id="upc-next">Next 10 UPCs to assign: loading...</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="vf-tabs">
+          <button class="vf-tab active" data-tab="families">Families (<span id="fam-count">0</span>)</button>
+          <button class="vf-tab" data-tab="standalone">Standalone (<span id="std-count">0</span>)</button>
+        </div>
+
+        <div class="vf-filters">
+          <div class="field"><label>Search (sku / asin / title)</label><input type="search" id="f-search" placeholder="e.g. plates, B0CW"></div>
+          <div class="field"><label>Theme</label><select id="f-theme"><option value="">All</option></select></div>
+          <div class="field"><label>Category</label><select id="f-cat"><option value="">All</option></select></div>
+          <div class="field"><label>Status</label>
+            <select id="f-stat">
+              <option value="">All</option>
+              <option value="ready">Ready to submit</option>
+              <option value="wait">Awaiting content</option>
+            </select>
+          </div>
+          <div class="field"><button class="btn btn-ghost" id="btn-clear" style="padding:6px 12px">Clear</button></div>
+        </div>
+
+        <div class="row-count" id="row-count">Loading...</div>
+
+        <div style="max-height:65vh; overflow:auto; border:1px solid var(--border); border-radius:4px">
+          <!-- Families tab -->
+          <table class="vf" id="tbl-families">
+            <thead>
+              <tr>
+                <th style="width:34px"></th>
+                <th>Family / Parent Title</th>
+                <th>Theme</th>
+                <th>Family ID</th>
+                <th>Parent TLAPS SKU</th>
+                <th class="text-center">Children</th>
+                <th>Category</th>
+                <th>Completion</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tb-families"><tr><td colspan="9" class="vf-empty">Loading variation families...</td></tr></tbody>
+          </table>
+
+          <!-- Standalone tab -->
+          <table class="vf" id="tbl-standalone" style="display:none">
+            <thead>
+              <tr>
+                <th>TLAPS SKU</th>
+                <th>DHG SKU <span class="badge-int">internal</span></th>
+                <th>ASIN</th>
+                <th>UPC</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th class="text-right">MAP</th>
+                <th class="text-right">i3 cost</th>
+                <th class="text-right">vc cost</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tb-standalone"><tr><td colspan="10" class="vf-empty">Loading standalone SKUs...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth();
+  renderSidebar('variations');
+
+  // UPC pool constants from CLAUDE.md
+  const UPC_POOL_START = 304828796009;
+  const UPC_POOL_END   = 304828799994;
+  const UPC_POOL_TOTAL = UPC_POOL_END - UPC_POOL_START + 1; // 3,986
+
+  const state = {
+    products: [],          // raw row per product (parent + child + standalone)
+    families: [],          // grouped: {family_id, parent, children[], theme, category}
+    standalones: [],       // single SKUs
+    expanded: new Set(),
+    tab: 'families'
+  };
+
+  document.getElementById('btn-refresh').addEventListener('click', () => load());
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    document.getElementById('f-search').value = '';
+    document.getElementById('f-theme').value = '';
+    document.getElementById('f-cat').value = '';
+    document.getElementById('f-stat').value = '';
+    render();
+  });
+  ['f-search','f-theme','f-cat','f-stat'].forEach(id =>
+    document.getElementById(id).addEventListener('input', () => render()));
+
+  document.querySelectorAll('.vf-tab').forEach(btn =>
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.vf-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.tab = btn.dataset.tab;
+      document.getElementById('tbl-families').style.display   = (state.tab === 'families') ? '' : 'none';
+      document.getElementById('tbl-standalone').style.display = (state.tab === 'standalone') ? '' : 'none';
+      render();
+    }));
+
+  load();
+
+  async function load() {
+    document.getElementById('row-count').textContent = 'Loading...';
+    try {
+      // Pull every row we need from products + the completion view in one go.
+      // v_sku_completion joins listings + asset_status so we get completion % too.
+      const compRows = await sbGet('v_sku_completion?select=*&limit=2000');
+      const compMap = new Map(compRows.map(r => [r.tlaps_sku, r]));
+
+      // Pull variation columns directly from products table.
+      const prodRows = await sbGet('products?select=tlaps_sku,dhg_sku,asin,brand,category,status,map_price,i3_cost,vc_cost,col_e,upc,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value,title&limit=2000');
+
+      // Merge completion fields onto product rows
+      state.products = prodRows.map(p => {
+        const c = compMap.get(p.tlaps_sku) || {};
+        return Object.assign({}, p, {
+          completion_pct: c.completion_pct,
+          gen_title:      c.gen_title || p.title,
+          c1_basic_listing:    c.c1_basic_listing,
+          c2_comparison_image: c.c2_comparison_image,
+          c3_lifestyle_image:  c.c3_lifestyle_image,
+          c4_video:            c.c4_video,
+          c5_aplus:            c.c5_aplus
+        });
+      });
+
+      groupData();
+      buildFilterOptions();
+      renderStats();
+      renderUpcPool();
+      render();
+    } catch (e) {
+      console.error(e);
+      toast('Load failed: ' + e.message, 'error');
+      document.getElementById('tb-families').innerHTML   = '<tr><td colspan="9"  class="vf-empty" style="color:var(--error)">Load failed. Check console.</td></tr>';
+      document.getElementById('tb-standalone').innerHTML = '<tr><td colspan="10" class="vf-empty" style="color:var(--error)">Load failed. Check console.</td></tr>';
+    }
+  }
+
+  function groupData() {
+    const byFamily = new Map();
+    const stand = [];
+    state.products.forEach(p => {
+      if (p.family_id) {
+        if (!byFamily.has(p.family_id)) byFamily.set(p.family_id, { family_id: p.family_id, parent: null, children: [] });
+        const f = byFamily.get(p.family_id);
+        if (p.is_parent) f.parent = p; else f.children.push(p);
+      } else {
+        stand.push(p);
+      }
+    });
+    state.families = [...byFamily.values()].map(f => {
+      const cat = f.parent && f.parent.category || (f.children[0] && f.children[0].category) || '';
+      const theme = (f.parent && f.parent.variation_theme) || (f.children[0] && f.children[0].variation_theme) || '';
+      // Completion: avg across children
+      let pct = 0;
+      if (f.children.length) {
+        const v = f.children.map(c => Number(c.completion_pct || 0));
+        pct = v.reduce((s,n)=>s+n,0) / v.length;
+      }
+      // Ready when every child >= 80% complete (basic listing + image + UPC + cost generally implies ~80)
+      const ready = f.children.length > 0 && f.children.every(c => Number(c.completion_pct || 0) >= 100);
+      // Sort children by variation_value for stable display
+      f.children.sort((a, b) => String(a.variation_value || '').localeCompare(String(b.variation_value || '')));
+      return Object.assign(f, { category: cat, theme: theme, completion_pct: pct, ready: ready });
+    }).sort((a, b) => a.family_id.localeCompare(b.family_id));
+
+    state.standalones = stand.sort((a, b) => (a.tlaps_sku || '').localeCompare(b.tlaps_sku || ''));
+
+    document.getElementById('fam-count').textContent = state.families.length;
+    document.getElementById('std-count').textContent = state.standalones.length;
+  }
+
+  function buildFilterOptions() {
+    const themes = [...new Set(state.products.map(p => p.variation_theme).filter(Boolean))].sort();
+    const cats   = [...new Set(state.products.map(p => p.category).filter(Boolean))].sort();
+    const themeSel = document.getElementById('f-theme');
+    themeSel.innerHTML = '<option value="">All</option>' + themes.map(v => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>').join('');
+    const catSel = document.getElementById('f-cat');
+    catSel.innerHTML = '<option value="">All</option>' + cats.map(v => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>').join('');
+  }
+
+  function renderStats() {
+    const childTotal = state.families.reduce((s, f) => s + f.children.length, 0);
+    const stand = state.standalones.length;
+    const submitCount = state.families.length + stand;
+    const avgPct = state.products.length
+      ? state.products.filter(p => !p.is_parent).reduce((s, p) => s + Number(p.completion_pct || 0), 0) / Math.max(1, state.products.filter(p => !p.is_parent).length)
+      : 0;
+    document.getElementById('vf-stats').innerHTML = ''
+      + statCard('Families', state.families.length, 'parents w/ children')
+      + statCard('Children', childTotal, 'variation SKUs')
+      + statCard('Standalone', stand, 'single ASINs')
+      + statCard('VC listings to submit', submitCount, 'parents + standalones', 'gold')
+      + statCard('Avg completion', avgPct.toFixed(0) + '%', 'children + standalones');
+  }
+  function statCard(label, value, sub, cls) {
+    return '<div class="vf-stat ' + (cls || '') + '"><div class="label">' + label + '</div><div class="value">' + value + '</div><div class="sub">' + (sub || '') + '</div></div>';
+  }
+
+  function renderUpcPool() {
+    // Find UPCs already used in live or any state.
+    const used = state.products
+      .map(p => String(p.upc || '').trim())
+      .filter(u => /^\d{12,13}$/.test(u))
+      .map(u => parseInt(u, 10))
+      .filter(n => n >= UPC_POOL_START && n <= UPC_POOL_END);
+    const usedLive = state.products
+      .filter(p => p.status === 'live' && p.upc)
+      .map(p => String(p.upc));
+    const usedDraft = state.products
+      .filter(p => p.status !== 'live' && /^\d{12,13}$/.test(String(p.upc || '').trim()))
+      .map(p => String(p.upc));
+
+    const usedSet = new Set(used);
+    const available = UPC_POOL_TOTAL - usedSet.size;
+
+    // Find the next 10 unassigned UPCs (sequential from start).
+    const nextList = [];
+    for (let n = UPC_POOL_START; n <= UPC_POOL_END && nextList.length < 10; n++) {
+      if (!usedSet.has(n)) nextList.push(n);
+    }
+
+    document.getElementById('upc-box').innerHTML = ''
+      + upcCard('Pool total', UPC_POOL_TOTAL.toLocaleString(), 'TLAPS GS1 range')
+      + upcCard('Live SKUs', usedLive.length, 'assigned + on Amazon')
+      + upcCard('Reserved', usedDraft.length, 'draft / pending')
+      + upcCard('Available', available.toLocaleString(), 'free to assign');
+
+    document.getElementById('upc-next').innerHTML =
+      '<strong>Next 10 UPCs to assign:</strong><br>' +
+      nextList.map(n => '<span style="margin-right:14px">' + n + '</span>').join('');
+  }
+  function upcCard(label, value, sub) {
+    return '<div class="upc-card"><div class="label">' + label + '</div><div class="value">' + value + '</div><div class="sub">' + sub + '</div></div>';
+  }
+
+  function pctClass(p) {
+    if (p == null) return 'grey';
+    if (p >= 100) return 'green';
+    if (p >= 67)  return 'green';
+    if (p >= 33)  return 'yellow';
+    if (p > 0)    return 'red';
+    return 'grey';
+  }
+  function pctBar(p) {
+    p = Number(p || 0);
+    const cls = pctClass(p);
+    return '<span class="pct-bar ' + cls + '"><div style="width:' + p + '%"></div></span><span class="tiny">' + p.toFixed(0) + '%</span>';
+  }
+  function money(v) { return v == null ? '—' : '$' + Number(v).toFixed(2); }
+  function detailLink(sku) { return '<a class="vf-link mono" href="product-detail.html?sku=' + encodeURIComponent(sku) + '">' + escapeHtml(sku) + '</a>'; }
+
+  function applyFilter(rows) {
+    const q  = document.getElementById('f-search').value.trim().toLowerCase();
+    const ft = document.getElementById('f-theme').value;
+    const fc = document.getElementById('f-cat').value;
+    const fs = document.getElementById('f-stat').value;
+    return rows.filter(r => {
+      if (q) {
+        // For family: search parent + children fields; for standalone, the row itself.
+        const hay = (r.children
+          ? [r.family_id, r.parent && r.parent.title, r.theme].concat(r.children.flatMap(c => [c.tlaps_sku, c.dhg_sku, c.asin, c.gen_title]))
+          : [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title]
+        ).filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (ft) {
+        if (r.children) { if (r.theme !== ft) return false; }
+        else { if (r.variation_theme !== ft) return false; }
+      }
+      if (fc) {
+        if (r.children) { if (r.category !== fc) return false; }
+        else { if (r.category !== fc) return false; }
+      }
+      if (fs === 'ready') {
+        if (r.children) { if (!r.ready) return false; }
+        else { if (Number(r.completion_pct || 0) < 100) return false; }
+      }
+      if (fs === 'wait') {
+        if (r.children) { if (r.ready) return false; }
+        else { if (Number(r.completion_pct || 0) >= 100) return false; }
+      }
+      return true;
+    });
+  }
+
+  function render() {
+    if (state.tab === 'families') renderFamilies();
+    else renderStandalone();
+  }
+
+  function renderFamilies() {
+    const rows = applyFilter(state.families);
+    document.getElementById('row-count').textContent = rows.length + ' of ' + state.families.length + ' families';
+    const tb = document.getElementById('tb-families');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="vf-empty">No families match.</td></tr>'; return; }
+    const html = rows.map(f => {
+      const isOpen = state.expanded.has(f.family_id);
+      const parentTitle = f.parent && f.parent.title ? f.parent.title : (f.children[0] && f.children[0].title) || '—';
+      const parentSku   = f.parent && f.parent.tlaps_sku || '—';
+      const badge = f.ready ? '<span class="badge-ready">Ready</span>' : '<span class="badge-wait">Waiting</span>';
+      let row =
+        '<tr class="family-row ' + (isOpen ? 'expanded' : '') + '" data-fam="' + escapeHtml(f.family_id) + '">' +
+          '<td class="text-center"><span class="caret">&#x25B6;</span></td>' +
+          '<td>' + escapeHtml(parentTitle) + '</td>' +
+          '<td>' + (f.theme ? '<span class="vf-theme">' + escapeHtml(f.theme) + '</span>' : '—') + '</td>' +
+          '<td><span class="vf-family">' + escapeHtml(f.family_id) + '</span></td>' +
+          '<td class="mono tiny">' + escapeHtml(parentSku) + '</td>' +
+          '<td class="text-center mono">' + f.children.length + '</td>' +
+          '<td class="tiny">' + escapeHtml(f.category || '—') + '</td>' +
+          '<td>' + pctBar(f.completion_pct) + '</td>' +
+          '<td>' + badge + '</td>' +
+        '</tr>';
+      if (isOpen) {
+        row +=
+          '<tr class="child-row"><td colspan="9" style="padding:0">' +
+          childTable(f.children) +
+          '</td></tr>';
+      }
+      return row;
+    }).join('');
+    tb.innerHTML = html;
+    tb.querySelectorAll('tr.family-row').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const id = tr.dataset.fam;
+        if (state.expanded.has(id)) state.expanded.delete(id); else state.expanded.add(id);
+        renderFamilies();
+      });
+    });
+  }
+
+  function childTable(children) {
+    return ''
+      + '<table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +   '<thead><tr style="background:#eef2ef;color:var(--text-muted);font-weight:700">'
+      +     '<th style="padding:5px 10px;text-align:left">TLAPS SKU</th>'
+      +     '<th style="padding:5px 10px;text-align:left">DHG SKU <span class="badge-int">internal</span></th>'
+      +     '<th style="padding:5px 10px;text-align:left">ASIN</th>'
+      +     '<th style="padding:5px 10px;text-align:left">UPC</th>'
+      +     '<th style="padding:5px 10px;text-align:left">Value</th>'
+      +     '<th style="padding:5px 10px;text-align:right">MAP</th>'
+      +     '<th style="padding:5px 10px;text-align:right">i3 cost</th>'
+      +     '<th style="padding:5px 10px;text-align:right">vc cost</th>'
+      +     '<th style="padding:5px 10px;text-align:left">Content</th>'
+      +     '<th style="padding:5px 10px;text-align:left">Image</th>'
+      +     '<th style="padding:5px 10px;text-align:left">Status</th>'
+      +   '</tr></thead>'
+      +   '<tbody>'
+      +   children.map(c => {
+        const content = c.c1_basic_listing ? '<span style="color:#15803d">&#10003;</span>' : '<span style="color:#d1d5db">&#10007;</span>';
+        const image   = (c.c2_comparison_image || c.c3_lifestyle_image) ? '<span style="color:#15803d">&#10003;</span>' : '<span style="color:#d1d5db">&#10007;</span>';
+        return '<tr>'
+          + '<td style="padding:4px 10px">' + detailLink(c.tlaps_sku) + '</td>'
+          + '<td style="padding:4px 10px" class="mono tiny dhg-internal">' + escapeHtml(c.dhg_sku || '—') + '</td>'
+          + '<td style="padding:4px 10px" class="mono tiny">' + escapeHtml(c.asin || '—') + '</td>'
+          + '<td style="padding:4px 10px" class="mono tiny">' + escapeHtml(c.upc || '—') + '</td>'
+          + '<td style="padding:4px 10px">' + escapeHtml(c.variation_value || '—') + '</td>'
+          + '<td style="padding:4px 10px;text-align:right" class="mono">' + money(c.map_price) + '</td>'
+          + '<td style="padding:4px 10px;text-align:right" class="mono">' + money(c.i3_cost) + '</td>'
+          + '<td style="padding:4px 10px;text-align:right" class="mono">' + money(c.vc_cost) + '</td>'
+          + '<td style="padding:4px 10px;text-align:center">' + content + '</td>'
+          + '<td style="padding:4px 10px;text-align:center">' + image + '</td>'
+          + '<td style="padding:4px 10px">' + escapeHtml(c.status || '—') + '</td>'
+          + '</tr>';
+      }).join('')
+      +   '</tbody>'
+      + '</table>';
+  }
+
+  function renderStandalone() {
+    const rows = applyFilter(state.standalones);
+    document.getElementById('row-count').textContent = rows.length + ' of ' + state.standalones.length + ' standalone SKUs';
+    const tb = document.getElementById('tb-standalone');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="10" class="vf-empty">No standalone SKUs match.</td></tr>'; return; }
+    tb.innerHTML = rows.map(r =>
+      '<tr>'
+      + '<td>' + detailLink(r.tlaps_sku) + '</td>'
+      + '<td class="mono tiny dhg-internal">' + escapeHtml(r.dhg_sku || '—') + '</td>'
+      + '<td class="mono tiny">' + escapeHtml(r.asin || '—') + '</td>'
+      + '<td class="mono tiny">' + escapeHtml(r.upc || '—') + '</td>'
+      + '<td>' + escapeHtml((r.gen_title || r.title || '—').slice(0, 80)) + '</td>'
+      + '<td class="tiny">' + escapeHtml(r.category || '—') + '</td>'
+      + '<td class="text-right mono">' + money(r.map_price) + '</td>'
+      + '<td class="text-right mono">' + money(r.i3_cost) + '</td>'
+      + '<td class="text-right mono">' + money(r.vc_cost) + '</td>'
+      + '<td>' + escapeHtml(r.status || '—') + '</td>'
+      + '</tr>'
+    ).join('');
+  }
+</script>
+</body>
+</html>
