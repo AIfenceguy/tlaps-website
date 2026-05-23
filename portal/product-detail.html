@@ -21,6 +21,7 @@
       <div class="muted" id="page-meta"></div>
     </div>
 
+    <div id="nis-card" style="margin-bottom:18px"></div>
     <div id="content"><div class="card text-center muted">Loading product…</div></div>
   </main>
 </div>
@@ -38,6 +39,41 @@
       `<div class="card" style="color:var(--error)">No ASIN specified. <a href="products.html">Back to products</a>.</div>`;
   } else {
     loadProduct(asin);
+    renderNisCard(asin);
+  }
+
+  // Inline NIS-readiness summary from Supabase (silent if view not applied yet).
+  async function renderNisCard(asin) {
+    try {
+      const rows = await sbGet('v_nis_readiness?select=*&asin=eq.' + encodeURIComponent(asin));
+      if (!rows || !rows.length) return;
+      const r = rows[0];
+      const m = v => (v == null || isNaN(v)) ? '—' : '$' + Number(v).toFixed(2);
+      const net = r.net_to_i3_calc, i3 = r.i3_cost_calc;
+      const margin = (net && net > 0 && i3 != null) ? ((net - i3) / net * 100).toFixed(1) + '%' : '—';
+      const slots = ['MAIN','PT01','PT02','PT03','PT04','PT05'];
+      const ss = r.slot_status || {};
+      const filled = slots.filter(s => ss[s] && ss[s].filled).length;
+      const ready = r.blocker === 'ready';
+      const cell = (l, v) => `<div><div class="tiny muted">${l}</div><div class="mono">${v}</div></div>`;
+      document.getElementById('nis-card').innerHTML =
+        `<div class="card" style="border-left:4px solid ${ready ? '#15803d' : '#b45309'}">
+           <div class="flex-between mb-12">
+             <strong style="color:var(--green)">NIS Readiness</strong>
+             <span class="badge ${ready ? 'badge-done' : 'badge-pending'}">${escapeHtml(r.blocker)}</span>
+           </div>
+           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;font-size:13px">
+             ${cell('UPC', r.upc ? escapeHtml(r.upc) : '<span style="color:#b91c1c">none</span>')}
+             ${cell('i3 cost', m(i3))}
+             ${cell('VC cost', m(r.vc_cost_calc))}
+             ${cell('Net to I3', m(net))}
+             ${cell('Margin', margin)}
+             ${cell('Images', filled + '/6')}
+             ${cell('Suggested list', m(r.suggested_list_price))}
+           </div>
+           <div class="tiny mt-12"><a href="nis-readiness.html">Open full NIS Readiness →</a></div>
+         </div>`;
+    } catch (e) { /* view not present yet -> stay silent */ }
   }
 
   async function loadProduct(asin) {

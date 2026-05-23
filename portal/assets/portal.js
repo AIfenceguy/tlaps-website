@@ -20,14 +20,16 @@ const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvZXNjd2pkcHBid2VxZmRxY3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzM2MTUsImV4cCI6MjA5MTcwOTYxNX0.0Z7VH3xyj-Px8U4qe5-_EGvULnr-UVvrYBk3G6aJPNo';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard',       icon: 'D', href: 'dashboard.html' },
-  { id: 'products',  label: 'Products',         icon: 'P', href: 'products.html'  },
-  { id: 'labels',    label: 'Labels',           icon: 'L', href: 'labels.html'    },
-  { id: 'orders',    label: 'Orders',           icon: 'O', href: 'orders.html'    },
-  { id: 'pablo',     label: 'Receiving (Pablo)',icon: 'R', href: 'pablo.html'     },
-  { id: 'costs',     label: 'Costs',            icon: '$', href: 'costs.html'     },
-  { id: 'media',     label: 'Media',            icon: 'M', href: 'media.html'     },
-  { id: 'keywords',  label: 'Keywords',         icon: 'K', href: 'keywords.html'  }
+  { id: 'dashboard',  label: 'Dashboard',        icon: 'D', href: 'dashboard.html'  },
+  { id: 'products',   label: 'Products',         icon: 'P', href: 'products.html'   },
+  { id: 'variations', label: 'Variations',       icon: 'V', href: 'variations.html' },
+  { id: 'nis',        label: 'NIS Readiness',    icon: 'N', href: 'nis-readiness.html' },
+  { id: 'labels',     label: 'Labels',           icon: 'L', href: 'labels.html'     },
+  { id: 'orders',     label: 'Orders',           icon: 'O', href: 'orders.html'     },
+  { id: 'pablo',      label: 'Receiving (Pablo)',icon: 'R', href: 'pablo.html'      },
+  { id: 'costs',      label: 'Costs',            icon: '$', href: 'costs.html'      },
+  { id: 'media',      label: 'Media',            icon: 'M', href: 'media.html'      },
+  { id: 'keywords',   label: 'Keywords',         icon: 'K', href: 'keywords.html'   }
 ];
 
 /* ============ AUTH ============ */
