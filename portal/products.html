@@ -10,16 +10,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 14px; }
-  .chip-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-  .chip { padding: 4px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-muted); user-select: none; }
-  .chip:hover { border-color: var(--green); color: var(--green); }
-  .chip.active { background: var(--green); border-color: var(--green); color: #fff; }
-  .vfam-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 9px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-family: 'SF Mono', Consolas, monospace; }
-  .vval-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 9px; font-weight: 600; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
-  .role-badge { display: inline-block; padding: 1px 5px; border-radius: 9px; font-size: 9px; font-weight: 700; }
-  .role-parent { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
-  .role-child  { background: #f0f9ff; color: #075985; border: 1px solid #bae6fd; }
-  .role-solo   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
   .filters .field { display: flex; flex-direction: column; gap: 3px; }
   .filters label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .filters input, .filters select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; background: var(--bg-card); }
@@ -74,12 +64,6 @@
 
     <section class="section">
       <div class="card">
-        <div class="chip-row" id="chip-row">
-          <button class="chip active" data-role="">All</button>
-          <button class="chip" data-role="parent">Families only (parents)</button>
-          <button class="chip" data-role="child">Children only</button>
-          <button class="chip" data-role="solo">Standalone only</button>
-        </div>
         <div class="filters">
           <div class="field"><label>Search (sku/asin/title)</label><input type="search" id="f-search" placeholder="e.g. TLAPS, B0915, plates"></div>
           <div class="field"><label>Brand</label><select id="f-brand"><option value="">All</option></select></div>
@@ -105,8 +89,6 @@
                 <th class="sortable" data-col="tlaps_sku">I3 SKU <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="dhg_sku">DHG SKU <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="asin">ASIN <span class="sort-arrow"></span></th>
-                <th class="sortable" data-col="family_id">Family <span class="sort-arrow"></span></th>
-                <th class="sortable" data-col="variation_value">Variant <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="brand">Brand <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="category">Category <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="status">Status <span class="sort-arrow"></span></th>
@@ -117,7 +99,7 @@
                 <th>Checklist</th>
               </tr>
             </thead>
-            <tbody id="tbody"><tr><td colspan="13" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
+            <tbody id="tbody"><tr><td colspan="11" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -130,16 +112,7 @@
   requireAuth();
   renderSidebar('products');
 
-  const state = { all: [], filtered: [], sortCol: 'completion_pct', sortDir: 'desc', role: '' };
-
-  document.querySelectorAll('.chip-row .chip').forEach(c => {
-    c.addEventListener('click', () => {
-      document.querySelectorAll('.chip-row .chip').forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      state.role = c.dataset.role || '';
-      applyFilters();
-    });
-  });
+  const state = { all: [], filtered: [], sortCol: 'completion_pct', sortDir: 'desc' };
 
   document.getElementById('btn-refresh').addEventListener('click', () => load());
   document.getElementById('btn-export-csv').addEventListener('click', () => exportCSV());
@@ -164,20 +137,14 @@
     try {
       // v_sku_completion already joins products + listings + asset_status
       const rows = await sbGet('v_sku_completion?select=*&limit=2000');
-      // Also pull variation columns from products (not yet in the view).
-      let varRows = [];
-      try {
-        varRows = await sbGet('products?select=tlaps_sku,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value&limit=2000');
-      } catch (ve) { console.warn('variation columns fetch failed:', ve.message); }
-      const varMap = new Map(varRows.map(v => [v.tlaps_sku, v]));
-      state.all = rows.map(r => Object.assign({}, r, varMap.get(r.tlaps_sku) || {}));
+      state.all = rows;
       buildFilterOptions();
       applyFilters();
     } catch (e) {
       console.error(e);
       toast('Failed to load: ' + e.message, 'error');
       document.getElementById('tbody').innerHTML =
-        '<tr><td colspan="13" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
+        '<tr><td colspan="11" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
     }
   }
 
@@ -208,13 +175,9 @@
 
     let rows = state.all.filter(r => {
       if (q) {
-        const hay = [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title, r.family_id, r.variation_value].filter(Boolean).join(' ').toLowerCase();
+        const hay = [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      // Role chip filter
-      if (state.role === 'parent') { if (!r.is_parent) return false; }
-      else if (state.role === 'child')  { if (r.is_parent || !r.parent_tlaps_sku) return false; }
-      else if (state.role === 'solo')   { if (r.family_id) return false; }
       if (fb && r.brand !== fb) return false;
       if (fs && r.status !== fs) return false;
       if (fc && r.category !== fc) return false;
@@ -251,11 +214,6 @@
     });
   }
 
-  function roleBadge(r) {
-    if (r.is_parent) return '<span class="role-badge role-parent">parent</span>';
-    if (r.parent_tlaps_sku) return '<span class="role-badge role-child">child</span>';
-    return '';
-  }
   function brandBadge(b) {
     if (!b) return '';
     const k = b === 'TLAPS' ? 'b-live' : b === 'DHG' ? 'b-draft' : 'b-other';
@@ -285,7 +243,7 @@
     const tbody = document.getElementById('tbody');
     document.getElementById('row-count').textContent = state.filtered.length + ' of ' + state.all.length + ' rows';
     if (!state.filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
       return;
     }
     tbody.innerHTML = state.filtered.map(r => {
@@ -293,11 +251,9 @@
       const cls = pctClass(p);
       return ''
         + '<tr>'
-        +   '<td class="mono">' + escapeHtml(r.tlaps_sku || '') + ' ' + roleBadge(r) + '</td>'
+        +   '<td class="mono">' + escapeHtml(r.tlaps_sku || '') + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.dhg_sku || '') + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.asin || '') + '</td>'
-        +   '<td>' + (r.family_id ? '<span class="vfam-badge">' + escapeHtml(r.family_id) + '</span>' : '<span class="muted tiny">—</span>') + '</td>'
-        +   '<td>' + (r.variation_value ? '<span class="vval-badge">' + escapeHtml(r.variation_value) + '</span>' : '<span class="muted tiny">—</span>') + '</td>'
         +   '<td>' + brandBadge(r.brand) + '</td>'
         +   '<td class="tiny">' + escapeHtml(r.category || '—') + '</td>'
         +   '<td>' + statusBadge(r.status) + '</td>'
@@ -327,7 +283,7 @@
   }
 
   function exportCSV() {
-    const cols = ['tlaps_sku','dhg_sku','asin','family_id','is_parent','parent_tlaps_sku','variation_theme','variation_value','brand','category','status','map_price','vc_cost','i3_cost','margin_pct_vc','completion_pct','criteria_met','c1_basic_listing','c2_comparison_image','c3_lifestyle_image','c4_video','c5_aplus','c6_reviews_min10','live_review_count','gen_title'];
+    const cols = ['tlaps_sku','dhg_sku','asin','brand','category','status','map_price','vc_cost','i3_cost','margin_pct_vc','completion_pct','criteria_met','c1_basic_listing','c2_comparison_image','c3_lifestyle_image','c4_video','c5_aplus','c6_reviews_min10','live_review_count','gen_title'];
     const escape = (v) => {
       if (v == null) return '';
       const s = String(v);
