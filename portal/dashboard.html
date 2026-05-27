@@ -99,29 +99,31 @@
 
   async function load() {
     try {
-      // Pull all SKUs from the completion view (single REST call, sorted client-side)
-      const rows = await sbGet('v_sku_completion?select=*&limit=2000');
-      const tlaps = rows.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-'));
-      const drafts = rows.filter(r => r.status === 'draft');
+      // Pull SKUs from the completion view, then filter to TLAPS-prefixed only.
+      // The raw view still contains pre-rebrand DHG catalog cruft; we never want
+      // to show that on the dashboard. Every widget below operates on `tlaps`.
+      const raw = await sbGet('v_sku_completion?select=*&limit=2000');
+      const tlaps = raw.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-'));
+      const drafts = tlaps.filter(r => r.status === 'draft');
 
-      renderKPIs(rows, tlaps);
+      renderKPIs(tlaps);
       renderCompletionDist(tlaps);
       renderMarginDist(tlaps);
-      renderThinnestMargin(rows);
+      renderThinnestMargin(tlaps);
       renderFurthest(tlaps);
       renderShortlist(drafts);
-      renderCatDist(rows);
+      renderCatDist(tlaps);
     } catch (e) {
       console.error(e);
       toast('Load failed: ' + e.message, 'error');
     }
   }
 
-  function renderKPIs(all, tlaps) {
-    const live = all.filter(r => r.status === 'live').length;
-    const draft = all.filter(r => r.status === 'draft').length;
-    const nis = all.filter(r => r.status === 'nis_pending').length;
-    const complete = all.filter(r => r.is_complete).length;
+  function renderKPIs(tlaps) {
+    const live = tlaps.filter(r => r.status === 'live').length;
+    const draft = tlaps.filter(r => r.status === 'draft').length;
+    const nis = tlaps.filter(r => r.status === 'nis_pending').length;
+    const complete = tlaps.filter(r => r.is_complete).length;
     const tlapsAvgCompletion = tlaps.length
       ? (tlaps.reduce((s, r) => s + Number(r.completion_pct || 0), 0) / tlaps.length).toFixed(1)
       : 0;
@@ -129,8 +131,8 @@
       ? (tlaps.filter(r => r.margin_pct_vc != null).reduce((s, r) => s + Number(r.margin_pct_vc), 0) / tlaps.filter(r => r.margin_pct_vc != null).length).toFixed(1)
       : '—';
     const html = ''
-      + kpi('Total SKUs', all.length, '')
-      + kpi('TLAPS launched', tlaps.length, 'of '+all.length)
+      + kpi('Total SKUs', tlaps.length, 'TLAPS-prefixed')
+      + kpi('TLAPS launched', tlaps.length, 'in catalog')
       + kpi('Live', live, 'on Amazon')
       + kpi('NIS pending', nis, 'in review')
       + kpi('Draft', draft, 'candidates')
@@ -175,8 +177,9 @@
     }).join('');
   }
 
-  function renderThinnestMargin(all) {
-    const list = all.filter(r => r.margin_pct_vc != null && (r.tlaps_sku || '').startsWith('TLAPS-'))
+  function renderThinnestMargin(tlaps) {
+    // tlaps is already filtered to TLAPS-prefixed rows in load()
+    const list = tlaps.filter(r => r.margin_pct_vc != null)
       .sort((a, b) => Number(a.margin_pct_vc) - Number(b.margin_pct_vc)).slice(0, 10);
     if (!list.length) { document.getElementById('thin-margin').innerHTML = '<tr><td class="muted">No data yet.</td></tr>'; return; }
     document.getElementById('thin-margin').innerHTML = list.map(r => {
@@ -212,9 +215,4 @@
     const max = sorted[0] ? sorted[0][1] : 1;
     document.getElementById('cat-dist').innerHTML = sorted.map(([cat, n]) => {
       const pct = (n / max) * 100;
-      return '<div class="bar-row"><div class="lbl" style="width:200px">' + escapeHtml(cat) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="n">' + n + '</div></div>';
-    }).join('');
-  }
-</script>
-</body>
-</html>
+      return '<div class="bar-row"><div class="lbl" styl
