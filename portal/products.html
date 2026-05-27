@@ -50,6 +50,11 @@
   .text-center { text-align: center; }
   .row-count { font-size: 12px; color: var(--text-muted); margin: 6px 0; }
   tbody tr { cursor: default; }
+  .thumb-cell { width: 48px; padding: 2px !important; }
+  .thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); display: block; cursor: pointer; background:#f3f4f6 }
+  .thumb-ph { width: 40px; height: 40px; background: #e5e7eb; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 9px; cursor: pointer; }
+  .title-cell { max-width: 280px; font-size: 11px; line-height: 1.35; color: var(--text); }
+  .title-cell-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 </style>
 </head>
 <body>
@@ -102,7 +107,9 @@
           <table class="data-table compact" id="tbl" style="margin:0">
             <thead>
               <tr>
+                <th class="thumb-cell">Img</th>
                 <th class="sortable" data-col="tlaps_sku">I3 SKU <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="gen_title">Listing Title <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="dhg_sku">DHG SKU <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="asin">ASIN <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="family_id">Family <span class="sort-arrow"></span></th>
@@ -117,7 +124,7 @@
                 <th>Checklist</th>
               </tr>
             </thead>
-            <tbody id="tbody"><tr><td colspan="13" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
+            <tbody id="tbody"><tr><td colspan="15" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -127,6 +134,33 @@
 
 <script src="assets/portal.js"></script>
 <script>
+  // Image-fallback helpers for thumbnails: walk through data-fallbacks JSON list.
+  function thumbFallback(imgEl) {
+    try {
+      const raw = imgEl.getAttribute('data-fallbacks');
+      const list = raw ? JSON.parse(raw) : [];
+      if (!list.length) { thumbPlaceholder(imgEl); return; }
+      const next = list.shift();
+      if (list.length) {
+        imgEl.setAttribute('data-fallbacks', JSON.stringify(list));
+      } else {
+        imgEl.removeAttribute('data-fallbacks');
+        imgEl.setAttribute('onerror', 'thumbPlaceholder(this)');
+      }
+      imgEl.src = next;
+    } catch (e) { thumbPlaceholder(imgEl); }
+  }
+  function thumbPlaceholder(imgEl) {
+    imgEl.onerror = null;
+    imgEl.removeAttribute('onerror');
+    const parent = imgEl.parentElement;
+    if (!parent) return;
+    const ph = document.createElement('div');
+    ph.className = 'thumb-ph';
+    ph.textContent = 'none';
+    parent.replaceChild(ph, imgEl);
+  }
+
   requireAuth();
   renderSidebar('products');
 
@@ -164,20 +198,27 @@
     try {
       // v_sku_completion already joins products + listings + asset_status
       const rows = await sbGet('v_sku_completion?select=*&limit=2000');
-      // Also pull variation columns from products (not yet in the view).
+      // Also pull variation columns + dhg_reference_images from products (not yet in the view).
       let varRows = [];
       try {
-        varRows = await sbGet('products?select=tlaps_sku,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value&limit=2000');
+        varRows = await sbGet('products?select=tlaps_sku,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value,dhg_reference_images&limit=2000');
       } catch (ve) { console.warn('variation columns fetch failed:', ve.message); }
       const varMap = new Map(varRows.map(v => [v.tlaps_sku, v]));
-      state.all = rows.map(r => Object.assign({}, r, varMap.get(r.tlaps_sku) || {}));
+      // Pull listings text content (bullet_1, description, keywords) so search can
+      // extend across listing copy, not just title.
+      let listRows = [];
+      try {
+        listRows = await sbGet('listings?select=tlaps_sku,gen_title,gen_bullet_1,gen_description,gen_keywords&limit=2000');
+      } catch (le) { console.warn('listings fetch failed:', le.message); }
+      const listMap = new Map(listRows.map(l => [l.tlaps_sku, l]));
+      state.all = rows.map(r => Object.assign({}, r, varMap.get(r.tlaps_sku) || {}, listMap.get(r.tlaps_sku) || {}));
       buildFilterOptions();
       applyFilters();
     } catch (e) {
       console.error(e);
       toast('Failed to load: ' + e.message, 'error');
       document.getElementById('tbody').innerHTML =
-        '<tr><td colspan="13" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
+        '<tr><td colspan="15" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
     }
   }
 
@@ -208,7 +249,12 @@
 
     let rows = state.all.filter(r => {
       if (q) {
-        const hay = [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title, r.family_id, r.variation_value].filter(Boolean).join(' ').toLowerCase();
+        const descSnippet = r.gen_description ? String(r.gen_description).slice(0, 200) : '';
+        const hay = [
+          r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title,
+          r.family_id, r.variation_value,
+          r.gen_bullet_1, descSnippet, r.gen_keywords
+        ].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       // Role chip filter
@@ -285,15 +331,18 @@
     const tbody = document.getElementById('tbody');
     document.getElementById('row-count').textContent = state.filtered.length + ' of ' + state.all.length + ' rows';
     if (!state.filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
       return;
     }
     tbody.innerHTML = state.filtered.map(r => {
       const p = Number(r.completion_pct || 0);
       const cls = pctClass(p);
+      const detailHref = 'product-detail.html?sku=' + encodeURIComponent(r.tlaps_sku || '');
       return ''
         + '<tr>'
-        +   '<td class="mono">' + escapeHtml(r.tlaps_sku || '') + ' ' + roleBadge(r) + '</td>'
+        +   '<td class="thumb-cell">' + thumbCell(r, detailHref) + '</td>'
+        +   '<td class="mono"><a href="' + detailHref + '" style="color:var(--green);text-decoration:none">' + escapeHtml(r.tlaps_sku || '') + '</a> ' + roleBadge(r) + '</td>'
+        +   '<td class="title-cell">' + titleCell(r, detailHref) + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.dhg_sku || '') + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.asin || '') + '</td>'
         +   '<td>' + (r.family_id ? '<span class="vfam-badge">' + escapeHtml(r.family_id) + '</span>' : '<span class="muted tiny">—</span>') + '</td>'
@@ -303,53 +352,4 @@
         +   '<td>' + statusBadge(r.status) + '</td>'
         +   '<td class="mono text-right">' + fmt$(r.map_price) + '</td>'
         +   '<td class="mono text-right">' + fmt$(r.vc_cost) + '</td>'
-        +   '<td class="mono text-right">' + fmtPct(r.margin_pct_vc) + '</td>'
-        +   '<td><span class="pct-bar ' + cls + '"><div style="width:' + p + '%"></div></span><span class="tiny">' + p.toFixed(0) + '%</span></td>'
-        +   '<td>' + ckRow(r) + '</td>'
-        + '</tr>';
-    }).join('');
-  }
-
-  function renderStats() {
-    const rows = state.filtered;
-    const total = rows.length;
-    const tlaps = rows.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-')).length;
-    const live = rows.filter(r => r.status === 'live').length;
-    const complete = rows.filter(r => r.is_complete).length;
-    const avgPct = rows.length ? (rows.reduce((s,r)=>s+Number(r.completion_pct||0),0) / rows.length) : 0;
-    const html = ''
-      + '<div class="stat"><div class="label">SKUs (filtered)</div><div class="value">' + total + '</div></div>'
-      + '<div class="stat"><div class="label">TLAPS-prefixed</div><div class="value">' + tlaps + '</div></div>'
-      + '<div class="stat"><div class="label">Live</div><div class="value">' + live + '</div></div>'
-      + '<div class="stat"><div class="label">100% complete</div><div class="value">' + complete + '</div></div>'
-      + '<div class="stat"><div class="label">Avg completion</div><div class="value">' + avgPct.toFixed(1) + '%</div></div>';
-    document.getElementById('stats').innerHTML = html;
-  }
-
-  function exportCSV() {
-    const cols = ['tlaps_sku','dhg_sku','asin','family_id','is_parent','parent_tlaps_sku','variation_theme','variation_value','brand','category','status','map_price','vc_cost','i3_cost','margin_pct_vc','completion_pct','criteria_met','c1_basic_listing','c2_comparison_image','c3_lifestyle_image','c4_video','c5_aplus','c6_reviews_min10','live_review_count','gen_title'];
-    const escape = (v) => {
-      if (v == null) return '';
-      const s = String(v);
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
-    };
-    const lines = [cols.join(',')];
-    state.filtered.forEach(r => lines.push(cols.map(c => escape(r[c])).join(',')));
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
-    toast('CSV exported (' + state.filtered.length + ' rows)', 'success');
-  }
-
-  function exportXLSX() {
-    const sheet = XLSX.utils.json_to_sheet(state.filtered);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, 'Products');
-    XLSX.writeFile(wb, 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.xlsx');
-    toast('XLSX exported (' + state.filtered.length + ' rows)', 'success');
-  }
-</script>
-</body>
-</html>
+        +   '<td class="mono text-right">' + fmtPct(r.margi
