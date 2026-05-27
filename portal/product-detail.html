@@ -28,18 +28,74 @@
 
 <script src="assets/portal.js"></script>
 <script>
+  // Image-fallback chain: walks through the data-fallbacks JSON list until one
+  // loads or the list is exhausted, then swaps in a placeholder.
+  function imgFallback(imgEl) {
+    try {
+      const raw = imgEl.getAttribute('data-fallbacks');
+      const list = raw ? JSON.parse(raw) : [];
+      if (!list.length) { imgPlaceholder(imgEl); return; }
+      const next = list.shift();
+      if (list.length) {
+        imgEl.setAttribute('data-fallbacks', JSON.stringify(list));
+      } else {
+        imgEl.removeAttribute('data-fallbacks');
+        imgEl.setAttribute('onerror', 'imgPlaceholder(this)');
+      }
+      imgEl.src = next;
+    } catch (e) { imgPlaceholder(imgEl); }
+  }
+  function imgPlaceholder(imgEl) {
+    imgEl.onerror = null;
+    imgEl.removeAttribute('onerror');
+    const parent = imgEl.parentElement;
+    if (!parent) return;
+    const ph = document.createElement('div');
+    ph.style.cssText = 'display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:11px;height:' + (imgEl.height || 120) + 'px;width:100%';
+    ph.textContent = imgEl.alt || 'no image';
+    parent.replaceChild(ph, imgEl);
+  }
+
   requireAuth();
   renderSidebar('products');
 
   const params = new URLSearchParams(location.search);
-  const asin = params.get('asin');
+  const skuParam  = params.get('sku');
+  const asinParam = params.get('asin');
 
-  if (!asin) {
+  if (!skuParam && !asinParam) {
     document.getElementById('content').innerHTML =
-      `<div class="card" style="color:var(--error)">No ASIN specified. <a href="products.html">Back to products</a>.</div>`;
+      `<div class="card" style="color:var(--error)">No SKU or ASIN specified. <a href="products.html">Back to products</a>.</div>`;
   } else {
-    loadProduct(asin);
-    renderNisCard(asin);
+    // resolveAndLoad chooses sku-first lookup if provided, asin otherwise
+    resolveAndLoadProduct(skuParam, asinParam);
+  }
+
+  // Resolve the product row from Supabase (so we always have tlaps_sku, dhg_sku,
+  // asin, and dhg_reference_images for the image-folder probing logic).
+  async function resolveAndLoadProduct(sku, asin) {
+    try {
+      let row = null;
+      if (sku) {
+        const rows = await sbGet('products?select=*&tlaps_sku=eq.' + encodeURIComponent(sku) + '&limit=1');
+        row = rows && rows[0];
+      }
+      if (!row && asin) {
+        const rows = await sbGet('products?select=*&asin=eq.' + encodeURIComponent(asin) + '&limit=1');
+        row = rows && rows[0];
+      }
+      if (!row) {
+        document.getElementById('content').innerHTML =
+          `<div class="card" style="color:var(--error)">Product not found for ${sku ? 'SKU ' + escapeHtml(sku) : 'ASIN ' + escapeHtml(asin)}. <a href="products.html">Back to products</a>.</div>`;
+        return;
+      }
+      // Render NIS card if we have an ASIN (the view is asin-keyed).
+      if (row.asin) renderNisCard(row.asin);
+      loadProductFromRow(row);
+    } catch (e) {
+      document.getElementById('content').innerHTML =
+        `<div class="card" style="color:var(--error)">Failed to load: ${escapeHtml(e.message)}</div>`;
+    }
   }
 
   // Inline NIS-readiness summary from Supabase (silent if view not applied yet).
@@ -76,21 +132,97 @@
     } catch (e) { /* view not present yet -> stay silent */ }
   }
 
-  async function loadProduct(asin) {
+  // Build a product object from a Supabase products row. Also fetch the
+  // listings row (if present) so we can populate the listing-content tab.
+  async function loadProductFromRow(row) {
     try {
-      const data = await loadSkuMapping(true);
-      const p = getProductByAsin(asin, data);
-      if (!p) throw new Error('Product not found for ASIN ' + asin);
+      // Pull listings content if present.
+      let listing = {};
+      try {
+        const ls = await sbGet('listings?select=*&tlaps_sku=eq.' + encodeURIComponent(row.tlaps_sku) + '&limit=1');
+        if (ls && ls[0]) {
+          const L = ls[0];
+          listing = {
+            title:              L.gen_title || '',
+            bullet_1:           L.gen_bullet_1 || '',
+            bullet_2:           L.gen_bullet_2 || '',
+            bullet_3:           L.gen_bullet_3 || '',
+            bullet_4:           L.gen_bullet_4 || '',
+            bullet_5:           L.gen_bullet_5 || '',
+            backend_keywords:   L.gen_keywords || '',
+            product_description: L.gen_description || ''
+          };
+        }
+      } catch (e) { /* listings table may not be populated for this sku */ }
 
-      document.getElementById('page-title').textContent = p.description || asin;
+      // Build a shim product object compatible with the existing render() code.
+      const p = {
+        i3_sku:        row.tlaps_sku,
+        tlaps_sku:     row.tlaps_sku,
+        dhg_sku:       row.dhg_sku || '',
+        asin:          row.asin || '',
+        upc:           row.upc || '',
+        vendor_code:   row.vendor_code || 'I3ENT',
+        description:   listing.title || row.dhg_amazon_title || row.tlaps_sku,
+        notes:         '',
+        map_price:     row.map_price,
+        amazon_selling_price: row.amz_selling_price,
+        dhg_cost:      row.col_e,
+        dhg_cost_confirmed: !!row.cost_confirmed,
+        coop_rate:     0.22,
+        listing:       listing,
+        media:         buildMediaForRow(row),
+        metrics:       {},
+        status: {
+          listing_live:           row.status === 'live',
+          images_uploaded:        !!row.images_uploaded,
+          title_optimized:        !!(listing.title && listing.title.length > 80),
+          backend_keywords_done:  !!(listing.backend_keywords && listing.backend_keywords.length > 50)
+        },
+        _row: row
+      };
+
+      document.getElementById('page-title').textContent = p.description || p.tlaps_sku;
       document.getElementById('page-meta').innerHTML =
-        `<span class="mono">${p.i3_sku}</span>`;
+        `<span class="mono">${escapeHtml(p.tlaps_sku)}</span>`;
 
       render(p);
     } catch (e) {
       document.getElementById('content').innerHTML =
         `<div class="card" style="color:var(--error)">${escapeHtml(e.message)}</div>`;
     }
+  }
+
+  // Build the media block. Folder-name candidates (in order): tlaps_sku, asin, dhg_sku.
+  // The img element uses an onerror chain to try each candidate folder for {ASIN}.{slot}.jpg.
+  function buildMediaForRow(row) {
+    return {
+      main_image: null, // resolved at render time via candidate-folder probe
+      gallery: [],
+      _slot_candidates: buildSlotCandidates(row),
+      _ref_images: Array.isArray(row.dhg_reference_images) ? row.dhg_reference_images : []
+    };
+  }
+  function buildSlotCandidates(row) {
+    const slots = ['MAIN','PT01','PT02','PT03','PT04','PT05','PT06','PT07','PT08'];
+    // Folder-name candidates, in priority order. Filter empties + dedupe.
+    const folderKeys = [row.tlaps_sku, row.asin, row.dhg_sku].filter(Boolean);
+    const folderKeysUnique = [...new Set(folderKeys)];
+    // The {ASIN} portion of the filename is whatever ASIN we have; if the SKU has no
+    // ASIN we still try with tlaps_sku and dhg_sku as the filename prefix.
+    const filePrefixCandidates = [row.asin, row.tlaps_sku, row.dhg_sku].filter(Boolean);
+    const prefixesUnique = [...new Set(filePrefixCandidates)];
+    const out = {};
+    slots.forEach(slot => {
+      const urls = [];
+      folderKeysUnique.forEach(folder => {
+        prefixesUnique.forEach(prefix => {
+          urls.push('../listings/images/' + encodeURIComponent(folder) + '/' + encodeURIComponent(prefix) + '.' + slot + '.jpg');
+        });
+      });
+      out[slot] = urls;
+    });
+    return out;
   }
 
   function render(p) {
@@ -105,9 +237,7 @@
       <!-- Header -->
       <div class="product-header">
         <div class="ph-image">
-          ${p.media && p.media.main_image
-            ? `<img src="${escapeHtml(p.media.main_image)}" alt="${escapeHtml(p.description)}">`
-            : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:11px">No image</div>'}
+          ${slotImgTag(p, 'MAIN', escapeHtml(p.description), 'width:100%;display:block')}
         </div>
         <div class="ph-info">
           <div class="ph-name">${escapeHtml(p.description)}</div>
@@ -229,31 +359,69 @@
   }
 
   /* ============ MEDIA PANEL ============ */
+  // Produce an <img> tag for a given slot that tries every candidate folder/file
+  // combo in order, then falls back to the first DHG reference image, then to a
+  // placeholder.  Uses a JSON-encoded data attribute to drive an onerror chain.
+  function slotImgTag(p, slot, alt, extraStyle) {
+    const M = p.media || {};
+    const candidates = (M._slot_candidates && M._slot_candidates[slot]) || [];
+    // For non-MAIN slots, also let MAIN reference images serve as a last resort.
+    const refs = M._ref_images || [];
+    const refForSlot = (slot === 'MAIN') ? refs[0] : null;
+    const all = candidates.slice();
+    if (refForSlot) all.push(refForSlot);
+    if (!all.length) {
+      return placeholderDiv(slot, alt, extraStyle);
+    }
+    const first = all[0];
+    const rest  = all.slice(1);
+    const dataAttr = rest.length ? ` data-fallbacks='${escapeHtml(JSON.stringify(rest))}'` : '';
+    const onerr = rest.length ? ' onerror="imgFallback(this)"' : ' onerror="imgPlaceholder(this)"';
+    const style = extraStyle ? ` style="${extraStyle}"` : '';
+    return `<img src="${escapeHtml(first)}" alt="${escapeHtml(alt || '')}"${style}${dataAttr}${onerr} loading="lazy">`;
+  }
+  function placeholderDiv(slot, alt, extraStyle) {
+    return `<div class="img-placeholder" style="${extraStyle || ''};display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:11px;min-height:80px">${escapeHtml(slot || 'no image')}</div>`;
+  }
   function mediaPanel(p) {
     const M = p.media || {};
-    const galleryEmpty = !(M.gallery && M.gallery.length);
+    const slots = ['MAIN','PT01','PT02','PT03','PT04','PT05','PT06','PT07','PT08'];
+    const heroSlot = 'MAIN';
+    const thumbSlots = slots.filter(s => s !== heroSlot);
     return `
       <div class="card">
-        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Main Image</h3>
-        ${M.main_image
-          ? `<div style="max-width:320px;border:1px solid var(--border);border-radius:5px;overflow:hidden">
-               <img src="${escapeHtml(M.main_image)}" alt="" style="width:100%;display:block">
-             </div>
-             <div class="tiny mt-12">${escapeHtml(M.main_image)}</div>`
-          : '<div class="muted">No main image set.</div>'}
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Main Image (MAIN)</h3>
+        <div style="max-width:420px;border:1px solid var(--border);border-radius:5px;overflow:hidden">
+          ${slotImgTag(p, heroSlot, p.description, 'width:100%;display:block')}
+        </div>
       </div>
 
       <div class="card mt-20" style="margin-top:18px">
-        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Gallery</h3>
-        <div class="gallery-grid">
-          ${galleryEmpty
-            ? Array(6).fill(0).map(() => '<div class="gallery-item empty">empty</div>').join('')
-            : M.gallery.map(src =>
-                `<div class="gallery-item"><img src="${escapeHtml(src)}" alt=""></div>`
-              ).join('')}
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">9-Slot Gallery</h3>
+        <div class="gallery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+          ${thumbSlots.map(s => `
+            <div class="gallery-item" style="border:1px solid var(--border);border-radius:5px;overflow:hidden;position:relative">
+              ${slotImgTag(p, s, s, 'width:100%;display:block;height:120px;object-fit:cover')}
+              <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;padding:2px 4px;text-align:center;font-family:monospace">${s}</div>
+            </div>
+          `).join('')}
         </div>
-        <div class="tiny mt-12">Gallery upload UI ships in Phase 3 (will write to repo + Supabase).</div>
+        <div class="tiny mt-12">Images load from <code>../listings/images/{tlaps_sku|asin|dhg_sku}/{ASIN}.{SLOT}.jpg</code>. Missing slots fall back to the DHG reference image or a placeholder.</div>
       </div>
+
+      ${(M._ref_images && M._ref_images.length) ? `
+      <div class="card mt-20" style="margin-top:18px">
+        <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">DHG Reference Images (source of truth)</h3>
+        <div class="gallery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+          ${M._ref_images.map(url => `
+            <div class="gallery-item" style="border:1px solid var(--border);border-radius:5px;overflow:hidden">
+              <img src="${escapeHtml(url)}" alt="DHG reference" loading="lazy" style="width:100%;display:block;height:120px;object-fit:cover">
+            </div>
+          `).join('')}
+        </div>
+        <div class="tiny mt-12">Pulled from DHG's live Amazon listing. Used by Higgsfield as the product fidelity anchor.</div>
+      </div>
+      ` : ''}
 
       <div class="card mt-20" style="margin-top:18px">
         <h3 style="font-size:14px;color:var(--green);margin-bottom:10px">Video</h3>
@@ -308,164 +476,4 @@
       <div class="card mt-20" style="margin-top:18px">
         <h3 style="font-size:14px;color:var(--green);margin-bottom:14px">Calculated Per-Unit P&amp;L</h3>
         <div class="pricing-grid" id="calc-grid">
-          <div class="kpi"><div class="label">Col E (MAP × 0.78)</div><div class="value" id="o-cole">${c.fmt.colE}</div></div>
-          <div class="kpi"><div class="label">Coop Fee</div><div class="value" id="o-coop">${c.fmt.coopFee}</div></div>
-          <div class="kpi green"><div class="label">Net to I3</div><div class="value" id="o-net">${c.fmt.net}</div></div>
-          <div class="kpi"><div class="label">Profit / Unit</div><div class="value" id="o-profit">${c.fmt.profit}</div></div>
-          <div class="kpi gold"><div class="label">Margin</div><div class="value" id="o-margin">${c.fmt.marginPct}</div></div>
-        </div>
-        <div class="tiny mt-12">Net = MAP × 0.78 × (1 − coop). Margin = Profit / Net.</div>
-      </div>
-
-      <div class="flex-between mt-20">
-        <span class="tiny" id="pricing-status">Loaded.</span>
-        <div>
-          <button class="btn btn-ghost" id="btn-pricing-reset">Reset to JSON</button>
-          <button class="btn btn-primary" id="btn-pricing-save">Save</button>
-        </div>
-      </div>
-    `;
-  }
-  function wirePricing(p) {
-    const root = document.querySelector('[data-tab-panel="pricing"]');
-    if (!root) return;
-
-    const inputs = {
-      map: document.getElementById('in-map'),
-      asp: document.getElementById('in-asp'),
-      dhg: document.getElementById('in-dhg'),
-      confirmed: document.getElementById('in-confirmed')
-    };
-
-    function recompute() {
-      const draft = {
-        map_price: parseFloat(inputs.map.value) || 0,
-        amazon_selling_price: parseFloat(inputs.asp.value) || null,
-        dhg_cost: parseFloat(inputs.dhg.value) || 0,
-        coop_rate: p.coop_rate
-      };
-      const c = computeCosts(draft);
-      document.getElementById('o-cole').textContent   = c.fmt.colE;
-      document.getElementById('o-coop').textContent   = c.fmt.coopFee;
-      document.getElementById('o-net').textContent    = c.fmt.net;
-      document.getElementById('o-profit').textContent = c.fmt.profit;
-      document.getElementById('o-margin').textContent = c.fmt.marginPct;
-    }
-    [inputs.map, inputs.asp, inputs.dhg].forEach(el => el.addEventListener('input', recompute));
-
-    document.getElementById('btn-pricing-save').addEventListener('click', () => {
-      saveOverrides(p.asin, {
-        'map_price': parseFloat(inputs.map.value) || 0,
-        'amazon_selling_price': inputs.asp.value === '' ? null : parseFloat(inputs.asp.value),
-        'dhg_cost': inputs.dhg.value === '' ? null : parseFloat(inputs.dhg.value),
-        'dhg_cost_confirmed': inputs.confirmed.checked
-      });
-      document.getElementById('pricing-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
-      toast('Pricing saved', 'success');
-    });
-
-    document.getElementById('btn-pricing-reset').addEventListener('click', () => {
-      if (!confirm('Discard your local edits for this product?')) return;
-      clearProductOverrides(p.asin);
-      location.reload();
-    });
-  }
-
-  /* ============ PERFORMANCE PANEL ============ */
-  function performancePanel(p) {
-    const m = p.metrics || {};
-    return `
-      <div class="card">
-        <div class="pricing-grid">
-          <div class="kpi"><div class="label">BSR Rank</div><div class="value">${m.bsr_rank ?? '—'}</div></div>
-          <div class="kpi"><div class="label">BSR Category</div><div class="value" style="font-size:13px">${escapeHtml(m.bsr_category || '—')}</div></div>
-          <div class="kpi"><div class="label">Reviews</div><div class="value">${m.reviews_count ?? 0}</div></div>
-          <div class="kpi"><div class="label">Rating</div><div class="value">${m.rating != null ? m.rating + ' ★' : '—'}</div></div>
-          <div class="kpi"><div class="label">Monthly Sales (est.)</div><div class="value">${m.monthly_sales_est ?? '—'}</div></div>
-        </div>
-        <div class="tiny mt-12">
-          Edit fields below to record what you see in Vendor Central.
-        </div>
-        <div class="pricing-grid mt-12" style="margin-top:14px">
-          <div class="field-row"><div class="field-label">BSR Rank</div><input class="form-input" type="number" id="m-bsr" value="${m.bsr_rank ?? ''}"></div>
-          <div class="field-row"><div class="field-label">BSR Category</div><input class="form-input" type="text" id="m-cat" value="${escapeHtml(m.bsr_category || '')}"></div>
-          <div class="field-row"><div class="field-label">Reviews</div><input class="form-input" type="number" id="m-rev" value="${m.reviews_count ?? ''}"></div>
-          <div class="field-row"><div class="field-label">Rating</div><input class="form-input" type="number" step="0.1" id="m-rat" value="${m.rating ?? ''}"></div>
-          <div class="field-row"><div class="field-label">Monthly Sales (est.)</div><input class="form-input" type="number" id="m-sales" value="${m.monthly_sales_est ?? ''}"></div>
-        </div>
-        <div class="flex-between mt-20">
-          <span class="tiny" id="perf-status">Loaded.</span>
-          <button class="btn btn-primary" id="btn-perf-save">Save Metrics</button>
-        </div>
-      </div>
-    `;
-  }
-  function wirePerformance(p) {
-    const btn = document.getElementById('btn-perf-save');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      saveOverrides(p.asin, {
-        'metrics.bsr_rank':         parseInt(document.getElementById('m-bsr').value) || null,
-        'metrics.bsr_category':     document.getElementById('m-cat').value,
-        'metrics.reviews_count':    parseInt(document.getElementById('m-rev').value) || 0,
-        'metrics.rating':           parseFloat(document.getElementById('m-rat').value) || null,
-        'metrics.monthly_sales_est': parseInt(document.getElementById('m-sales').value) || null
-      });
-      document.getElementById('perf-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
-      toast('Metrics saved', 'success');
-    });
-  }
-
-  /* ============ STATUS PANEL ============ */
-  function statusPanel(p) {
-    const s = p.status || {};
-    const m = p.media || {};
-    const checklist = [
-      { key: 'status.listing_live',           label: 'Listing live on Amazon',         val: !!s.listing_live },
-      { key: 'status.images_uploaded',        label: 'All images uploaded',            val: !!s.images_uploaded },
-      { key: 'status.title_optimized',        label: 'Title optimized',                val: !!s.title_optimized },
-      { key: 'status.backend_keywords_done',  label: 'Backend keywords optimized',     val: !!s.backend_keywords_done },
-      { key: 'media.video_status',            label: 'Video uploaded',                 val: m.video_status === 'uploaded', isVideo: true },
-      { key: 'media.aplus_status',            label: 'A+ content submitted',           val: m.aplus_status === 'submitted' || m.aplus_status === 'live', isAplus: true },
-      { key: 'dhg_cost_confirmed',            label: 'DHG cost confirmed by Raymond',  val: !!p.dhg_cost_confirmed }
-    ];
-
-    return `
-      <div class="card">
-        <ul class="checklist">
-          ${checklist.map(item => `
-            <li>
-              <label>
-                <input type="checkbox" ${item.val ? 'checked' : ''} data-status-key="${item.key}" ${item.isVideo || item.isAplus ? 'disabled' : ''}>
-                <span>${item.label}</span>
-              </label>
-              ${item.isVideo ? videoBadge(m.video_status) : ''}
-              ${item.isAplus ? aplusBadge(m.aplus_status) : ''}
-            </li>
-          `).join('')}
-        </ul>
-        <div class="tiny mt-12">Video and A+ states are managed on the Media tab — checkboxes here are read-only.</div>
-        <div class="flex-between mt-20">
-          <span class="tiny" id="status-status">Loaded.</span>
-          <button class="btn btn-primary" id="btn-status-save">Save Checklist</button>
-        </div>
-      </div>
-    `;
-  }
-  function wireStatus(p) {
-    const btn = document.getElementById('btn-status-save');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      const updates = {};
-      document.querySelectorAll('[data-status-key]').forEach(cb => {
-        if (cb.disabled) return;
-        updates[cb.dataset.statusKey] = cb.checked;
-      });
-      saveOverrides(p.asin, updates);
-      document.getElementById('status-status').textContent = 'Saved at ' + new Date().toLocaleTimeString();
-      toast('Status saved', 'success');
-    });
-  }
-</script>
-</body>
-</html>
+          <div class="kpi"><

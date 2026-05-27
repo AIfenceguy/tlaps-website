@@ -10,6 +10,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 14px; }
+  .chip-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip { padding: 4px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-muted); user-select: none; }
+  .chip:hover { border-color: var(--green); color: var(--green); }
+  .chip.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .vfam-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 9px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-family: 'SF Mono', Consolas, monospace; }
+  .vval-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 9px; font-weight: 600; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+  .role-badge { display: inline-block; padding: 1px 5px; border-radius: 9px; font-size: 9px; font-weight: 700; }
+  .role-parent { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+  .role-child  { background: #f0f9ff; color: #075985; border: 1px solid #bae6fd; }
+  .role-solo   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
   .filters .field { display: flex; flex-direction: column; gap: 3px; }
   .filters label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .filters input, .filters select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; background: var(--bg-card); }
@@ -40,6 +50,11 @@
   .text-center { text-align: center; }
   .row-count { font-size: 12px; color: var(--text-muted); margin: 6px 0; }
   tbody tr { cursor: default; }
+  .thumb-cell { width: 48px; padding: 2px !important; }
+  .thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); display: block; cursor: pointer; background:#f3f4f6 }
+  .thumb-ph { width: 40px; height: 40px; background: #e5e7eb; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 9px; cursor: pointer; }
+  .title-cell { max-width: 280px; font-size: 11px; line-height: 1.35; color: var(--text); }
+  .title-cell-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 </style>
 </head>
 <body>
@@ -64,6 +79,12 @@
 
     <section class="section">
       <div class="card">
+        <div class="chip-row" id="chip-row">
+          <button class="chip active" data-role="">All</button>
+          <button class="chip" data-role="parent">Families only (parents)</button>
+          <button class="chip" data-role="child">Children only</button>
+          <button class="chip" data-role="solo">Standalone only</button>
+        </div>
         <div class="filters">
           <div class="field"><label>Search (sku/asin/title)</label><input type="search" id="f-search" placeholder="e.g. TLAPS, B0915, plates"></div>
           <div class="field"><label>Brand</label><select id="f-brand"><option value="">All</option></select></div>
@@ -86,9 +107,13 @@
           <table class="data-table compact" id="tbl" style="margin:0">
             <thead>
               <tr>
+                <th class="thumb-cell">Img</th>
                 <th class="sortable" data-col="tlaps_sku">I3 SKU <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="gen_title">Listing Title <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="dhg_sku">DHG SKU <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="asin">ASIN <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="family_id">Family <span class="sort-arrow"></span></th>
+                <th class="sortable" data-col="variation_value">Variant <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="brand">Brand <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="category">Category <span class="sort-arrow"></span></th>
                 <th class="sortable" data-col="status">Status <span class="sort-arrow"></span></th>
@@ -99,7 +124,7 @@
                 <th>Checklist</th>
               </tr>
             </thead>
-            <tbody id="tbody"><tr><td colspan="11" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
+            <tbody id="tbody"><tr><td colspan="15" class="muted" style="padding:30px;text-align:center">Loading rows from tlaps-prod&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -109,10 +134,46 @@
 
 <script src="assets/portal.js"></script>
 <script>
+  // Image-fallback helpers for thumbnails: walk through data-fallbacks JSON list.
+  function thumbFallback(imgEl) {
+    try {
+      const raw = imgEl.getAttribute('data-fallbacks');
+      const list = raw ? JSON.parse(raw) : [];
+      if (!list.length) { thumbPlaceholder(imgEl); return; }
+      const next = list.shift();
+      if (list.length) {
+        imgEl.setAttribute('data-fallbacks', JSON.stringify(list));
+      } else {
+        imgEl.removeAttribute('data-fallbacks');
+        imgEl.setAttribute('onerror', 'thumbPlaceholder(this)');
+      }
+      imgEl.src = next;
+    } catch (e) { thumbPlaceholder(imgEl); }
+  }
+  function thumbPlaceholder(imgEl) {
+    imgEl.onerror = null;
+    imgEl.removeAttribute('onerror');
+    const parent = imgEl.parentElement;
+    if (!parent) return;
+    const ph = document.createElement('div');
+    ph.className = 'thumb-ph';
+    ph.textContent = 'none';
+    parent.replaceChild(ph, imgEl);
+  }
+
   requireAuth();
   renderSidebar('products');
 
-  const state = { all: [], filtered: [], sortCol: 'completion_pct', sortDir: 'desc' };
+  const state = { all: [], filtered: [], sortCol: 'completion_pct', sortDir: 'desc', role: '' };
+
+  document.querySelectorAll('.chip-row .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.chip-row .chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      state.role = c.dataset.role || '';
+      applyFilters();
+    });
+  });
 
   document.getElementById('btn-refresh').addEventListener('click', () => load());
   document.getElementById('btn-export-csv').addEventListener('click', () => exportCSV());
@@ -137,14 +198,27 @@
     try {
       // v_sku_completion already joins products + listings + asset_status
       const rows = await sbGet('v_sku_completion?select=*&limit=2000');
-      state.all = rows;
+      // Also pull variation columns + dhg_reference_images from products (not yet in the view).
+      let varRows = [];
+      try {
+        varRows = await sbGet('products?select=tlaps_sku,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value,dhg_reference_images&limit=2000');
+      } catch (ve) { console.warn('variation columns fetch failed:', ve.message); }
+      const varMap = new Map(varRows.map(v => [v.tlaps_sku, v]));
+      // Pull listings text content (bullet_1, description, keywords) so search can
+      // extend across listing copy, not just title.
+      let listRows = [];
+      try {
+        listRows = await sbGet('listings?select=tlaps_sku,gen_title,gen_bullet_1,gen_description,gen_keywords&limit=2000');
+      } catch (le) { console.warn('listings fetch failed:', le.message); }
+      const listMap = new Map(listRows.map(l => [l.tlaps_sku, l]));
+      state.all = rows.map(r => Object.assign({}, r, varMap.get(r.tlaps_sku) || {}, listMap.get(r.tlaps_sku) || {}));
       buildFilterOptions();
       applyFilters();
     } catch (e) {
       console.error(e);
       toast('Failed to load: ' + e.message, 'error');
       document.getElementById('tbody').innerHTML =
-        '<tr><td colspan="11" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
+        '<tr><td colspan="15" style="color:var(--error);text-align:center;padding:30px">Load failed. Check console.</td></tr>';
     }
   }
 
@@ -175,9 +249,18 @@
 
     let rows = state.all.filter(r => {
       if (q) {
-        const hay = [r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title].filter(Boolean).join(' ').toLowerCase();
+        const descSnippet = r.gen_description ? String(r.gen_description).slice(0, 200) : '';
+        const hay = [
+          r.tlaps_sku, r.dhg_sku, r.asin, r.gen_title,
+          r.family_id, r.variation_value,
+          r.gen_bullet_1, descSnippet, r.gen_keywords
+        ].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
+      // Role chip filter
+      if (state.role === 'parent') { if (!r.is_parent) return false; }
+      else if (state.role === 'child')  { if (r.is_parent || !r.parent_tlaps_sku) return false; }
+      else if (state.role === 'solo')   { if (r.family_id) return false; }
       if (fb && r.brand !== fb) return false;
       if (fs && r.status !== fs) return false;
       if (fc && r.category !== fc) return false;
@@ -214,6 +297,11 @@
     });
   }
 
+  function roleBadge(r) {
+    if (r.is_parent) return '<span class="role-badge role-parent">parent</span>';
+    if (r.parent_tlaps_sku) return '<span class="role-badge role-child">child</span>';
+    return '';
+  }
   function brandBadge(b) {
     if (!b) return '';
     const k = b === 'TLAPS' ? 'b-live' : b === 'DHG' ? 'b-draft' : 'b-other';
@@ -243,69 +331,25 @@
     const tbody = document.getElementById('tbody');
     document.getElementById('row-count').textContent = state.filtered.length + ' of ' + state.all.length + ' rows';
     if (!state.filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="11" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15" class="muted" style="padding:30px;text-align:center">No rows match the current filters.</td></tr>';
       return;
     }
     tbody.innerHTML = state.filtered.map(r => {
       const p = Number(r.completion_pct || 0);
       const cls = pctClass(p);
+      const detailHref = 'product-detail.html?sku=' + encodeURIComponent(r.tlaps_sku || '');
       return ''
         + '<tr>'
-        +   '<td class="mono">' + escapeHtml(r.tlaps_sku || '') + '</td>'
+        +   '<td class="thumb-cell">' + thumbCell(r, detailHref) + '</td>'
+        +   '<td class="mono"><a href="' + detailHref + '" style="color:var(--green);text-decoration:none">' + escapeHtml(r.tlaps_sku || '') + '</a> ' + roleBadge(r) + '</td>'
+        +   '<td class="title-cell">' + titleCell(r, detailHref) + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.dhg_sku || '') + '</td>'
         +   '<td class="mono tiny">' + escapeHtml(r.asin || '') + '</td>'
+        +   '<td>' + (r.family_id ? '<span class="vfam-badge">' + escapeHtml(r.family_id) + '</span>' : '<span class="muted tiny">—</span>') + '</td>'
+        +   '<td>' + (r.variation_value ? '<span class="vval-badge">' + escapeHtml(r.variation_value) + '</span>' : '<span class="muted tiny">—</span>') + '</td>'
         +   '<td>' + brandBadge(r.brand) + '</td>'
         +   '<td class="tiny">' + escapeHtml(r.category || '—') + '</td>'
         +   '<td>' + statusBadge(r.status) + '</td>'
         +   '<td class="mono text-right">' + fmt$(r.map_price) + '</td>'
         +   '<td class="mono text-right">' + fmt$(r.vc_cost) + '</td>'
-        +   '<td class="mono text-right">' + fmtPct(r.margin_pct_vc) + '</td>'
-        +   '<td><span class="pct-bar ' + cls + '"><div style="width:' + p + '%"></div></span><span class="tiny">' + p.toFixed(0) + '%</span></td>'
-        +   '<td>' + ckRow(r) + '</td>'
-        + '</tr>';
-    }).join('');
-  }
-
-  function renderStats() {
-    const rows = state.filtered;
-    const total = rows.length;
-    const tlaps = rows.filter(r => (r.tlaps_sku || '').startsWith('TLAPS-')).length;
-    const live = rows.filter(r => r.status === 'live').length;
-    const complete = rows.filter(r => r.is_complete).length;
-    const avgPct = rows.length ? (rows.reduce((s,r)=>s+Number(r.completion_pct||0),0) / rows.length) : 0;
-    const html = ''
-      + '<div class="stat"><div class="label">SKUs (filtered)</div><div class="value">' + total + '</div></div>'
-      + '<div class="stat"><div class="label">TLAPS-prefixed</div><div class="value">' + tlaps + '</div></div>'
-      + '<div class="stat"><div class="label">Live</div><div class="value">' + live + '</div></div>'
-      + '<div class="stat"><div class="label">100% complete</div><div class="value">' + complete + '</div></div>'
-      + '<div class="stat"><div class="label">Avg completion</div><div class="value">' + avgPct.toFixed(1) + '%</div></div>';
-    document.getElementById('stats').innerHTML = html;
-  }
-
-  function exportCSV() {
-    const cols = ['tlaps_sku','dhg_sku','asin','brand','category','status','map_price','vc_cost','i3_cost','margin_pct_vc','completion_pct','criteria_met','c1_basic_listing','c2_comparison_image','c3_lifestyle_image','c4_video','c5_aplus','c6_reviews_min10','live_review_count','gen_title'];
-    const escape = (v) => {
-      if (v == null) return '';
-      const s = String(v);
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
-    };
-    const lines = [cols.join(',')];
-    state.filtered.forEach(r => lines.push(cols.map(c => escape(r[c])).join(',')));
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
-    toast('CSV exported (' + state.filtered.length + ' rows)', 'success');
-  }
-
-  function exportXLSX() {
-    const sheet = XLSX.utils.json_to_sheet(state.filtered);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, 'Products');
-    XLSX.writeFile(wb, 'tlaps-products-' + new Date().toISOString().slice(0,10) + '.xlsx');
-    toast('XLSX exported (' + state.filtered.length + ' rows)', 'success');
-  }
-</script>
-</body>
-</html>
+        +   '<td class="mono text-right">' + fmtPct(r.margi
