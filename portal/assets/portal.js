@@ -407,4 +407,21 @@ function evaluateBoxStatus(dhgSku, qtyNeeded, inventory) {
       status: 'none', label: '0 boxes on hand - request ' + qtyNeeded + ' from DHG' };
   }
   const gap = qtyNeeded - onHand;
-  return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: true, gap
+  return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: true, gap: gap,
+    status: 'short', label: 'Only ' + onHand + ' boxes - request ' + gap + ' from DHG' };
+}
+async function upsertBoxRow(dhgSku, tlapsSku, boxesOnHand, notes) {
+  const email = sessionStorage.getItem(EMAIL_KEY) || '';
+  const row = {
+    dhg_sku: String(dhgSku).trim(),
+    tlaps_sku: String(tlapsSku || '').trim(),
+    retail_boxes_on_hand: Math.max(0, parseInt(boxesOnHand, 10) || 0),
+    notes: String(notes || ''),
+    last_counted_at: new Date().toISOString(),
+    updated_by: email || null
+  };
+  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dhg_sku');
+  _boxInvCache = null;
+  await loadBoxInventory(true);
+  return result;
+}
