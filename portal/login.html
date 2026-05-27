@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in &mdash; TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<script src="auth.js"></script>
+<style>
+  body {
+    background: linear-gradient(135deg, #144229 0%, #1B5E3B 60%, #2a7a4f 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    padding: 36px 36px 28px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .login-brand {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .login-brand img {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .login-brand h1 {
+    font-size: 18px;
+    margin-top: 12px;
+    color: var(--green);
+    letter-spacing: 0.04em;
+  }
+  .login-brand .sub {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(27,94,59,0.12);
+  }
+  button.signin-btn {
+    width: 100%;
+    background: var(--green);
+    color: #fff;
+    border: 0;
+    padding: 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  button.signin-btn:hover { background: var(--green-dark); }
+  button.signin-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+  .form-error {
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-top: 12px;
+    display: none;
+  }
+  .form-error.show { display: block; }
+  .login-footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 18px;
+  }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-brand">
+    <img src="../images/tlaps_logo.png" alt="TLAPS" onerror="this.style.display='none'">
+    <h1>TLAPS Operations</h1>
+    <div class="sub">Authorized Personnel Only</div>
+  </div>
+  <form id="loginForm" autocomplete="on">
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required autocomplete="username" placeholder="you@example.com" autofocus>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+    </div>
+    <button type="submit" class="signin-btn" id="signinBtn">Sign in</button>
+    <div class="form-error" id="error"></div>
+  </form>
+  <div class="login-footer">Internal access only</div>
+</div>
+
+<script>
+  // If already authed, skip the form
+  if (window.isAuthed && window.isAuthed()) {
+    var qs = new URLSearchParams(window.location.search);
+    var next = qs.get('next');
+    window.location.replace(next || 'dashboard.html');
+  }
+
+  var form = document.getElementById('loginForm');
+  var errEl = document.getElementById('error');
+  var btn = document.getElementById('signinBtn');
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.classList.add('show');
+  }
+  function clearError() {
+    errEl.textContent = '';
+    errEl.classList.remove('show');
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearError();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    if (!email || !password) {
+      showError('Email and password are required.');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    try {
+      var ok = await window.attemptLogin(email, password);
+      if (ok) {
+        var qs = new URLSearchParams(window.location.search);
+        var next = qs.get('next');
+        // Sanity-check next: must be a same-origin path
+        if (next && next.indexOf('/') === 0 && next.indexOf('//') !== 0) {
+          window.location.replace(next);
+        } else if (next && next.indexOf('://') === -1) {
+          window.location.replace(next);
+        } else {
+          window.location.replace('dashboard.html');
+        }
+      } else {
+        showError('Invalid email or password.');
+        document.getElementById('password').value = '';
+        document.getElementById('password').focus();
+      }
+    } catch (err) {
+      showError('Sign-in failed. Please try again.');
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  });
+</script>
+</body>
+</html>

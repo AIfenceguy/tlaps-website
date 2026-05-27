@@ -4,9 +4,10 @@
  * Edits: persisted to localStorage as overrides on top of sku_mapping.json.
  */
 
-const PORTAL_PASSWORD = 'tlaps2026';
-const AUTH_KEY        = 'tlaps_auth';
-const EMAIL_KEY       = 'tlaps_user_email';
+// Auth keys are managed by auth.js (head-loaded). These mirrors are kept
+// for backwards compatibility with existing renderSidebar() / requireAuth().
+const AUTH_KEY        = (typeof window !== 'undefined' && window.TLAPS_AUTH_KEY)  || 'tlapsAuth';
+const EMAIL_KEY       = (typeof window !== 'undefined' && window.TLAPS_EMAIL_KEY) || 'tlapsAuthEmail';
 const OVERRIDES_KEY   = 'tlaps_overrides';
 const POS_KEY         = 'tlaps_pos';
 const BOX_CACHE_KEY   = 'tlaps_box_inventory_cache';
@@ -34,21 +35,27 @@ const NAV_ITEMS = [
 
 /* ============ AUTH ============ */
 
-function isAuthenticated() { return sessionStorage.getItem(AUTH_KEY) === 'true'; }
+function isAuthenticated() {
+  if (typeof window !== 'undefined' && typeof window.isAuthed === 'function') return window.isAuthed();
+  return sessionStorage.getItem(AUTH_KEY) === 'true';
+}
+// Legacy login() preserved as a no-op shim. Real login is handled by login.html
+// via window.attemptLogin() from auth.js. This shim is only reachable from the
+// legacy index.html form, which is now a redirector — but kept defensive in case
+// some old script still calls it.
 function login(email, password) {
-  if (password === PORTAL_PASSWORD) {
-    sessionStorage.setItem(AUTH_KEY, 'true');
-    sessionStorage.setItem(EMAIL_KEY, email || '');
-    return true;
-  }
+  // Async path can't be exposed through this sync shim. Just refuse.
   return false;
 }
 function logout() {
-  sessionStorage.removeItem(AUTH_KEY);
-  sessionStorage.removeItem(EMAIL_KEY);
-  window.location.href = 'index.html';
+  if (typeof window !== 'undefined' && typeof window.signOut === 'function') { window.signOut(); return; }
+  try {
+    sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(EMAIL_KEY);
+  } catch (e) {}
+  window.location.href = 'login.html';
 }
-function requireAuth() { if (!isAuthenticated()) window.location.href = 'index.html'; }
+function requireAuth() { if (!isAuthenticated()) window.location.replace('login.html'); }
 
 /* ============ SIDEBAR ============ */
 
@@ -400,21 +407,4 @@ function evaluateBoxStatus(dhgSku, qtyNeeded, inventory) {
       status: 'none', label: '0 boxes on hand - request ' + qtyNeeded + ' from DHG' };
   }
   const gap = qtyNeeded - onHand;
-  return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: true, gap: gap,
-    status: 'short', label: 'Only ' + onHand + ' boxes - request ' + gap + ' from DHG' };
-}
-async function upsertBoxRow(dhgSku, tlapsSku, boxesOnHand, notes) {
-  const email = sessionStorage.getItem(EMAIL_KEY) || '';
-  const row = {
-    dhg_sku: String(dhgSku).trim(),
-    tlaps_sku: String(tlapsSku || '').trim(),
-    retail_boxes_on_hand: Math.max(0, parseInt(boxesOnHand, 10) || 0),
-    notes: String(notes || ''),
-    last_counted_at: new Date().toISOString(),
-    updated_by: email || null
-  };
-  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dhg_sku');
-  _boxInvCache = null;
-  await loadBoxInventory(true);
-  return result;
-}
+  return { on_hand: onHand, last_counted_at: row.last_counted_at, request_from_dhg: true, gap
