@@ -17,3 +17,8 @@ Economy price, industry quality. Bulk case packs for high-volume foodservice ope
 ## Links
 - Storefront: https://www.tlapspro.com
 - Amazon: search "TLAPS" on amazon.com
+
+## Full catalog
+- Browse all products: https://www.tlapspro.com/catalog/  (structured Product data / JSON-LD for every item)
+- Brand commercial: https://www.tlapspro.com/ad/
+- A+ content modules: https://www.tlapspro.com/listings/aplus/
