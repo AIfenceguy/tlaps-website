@@ -210,7 +210,7 @@
       const compMap = new Map(compRows.map(r => [r.tlaps_sku, r]));
 
       // Pull variation columns directly from products table.
-      const prodRows = await sbGet('products?select=tlaps_sku,dhg_sku,asin,brand,category,status,map_price,i3_cost,vc_cost,col_e,upc,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value,title&limit=2000');
+      const prodRows = await sbGet('products?select=tlaps_sku,dhg_sku,asin,brand,category,status,map_price,i3_cost,vc_cost,col_e,upc,family_id,is_parent,parent_tlaps_sku,variation_theme,variation_value,title:dhg_amazon_title&limit=2000');
 
       // Merge completion fields onto product rows
       state.products = prodRows.map(p => {
@@ -491,5 +491,3 @@
     ).join('');
   }
 </script>
-</body>
-</html>
