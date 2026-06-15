@@ -1,0 +1,21 @@
+[
+ {
+  "id": "2026-05",
+  "po_date": "2026-05",
+  "label": "May 2026 fulfillment (ECO Food Pak invoice)",
+  "type": "monthly_cost",
+  "total_cost": 2734.15,
+  "box_fees": 413,
+  "ups_pickup": 148.88,
+  "note": "DHG monthly billing detail; cost side only"
+ },
+ {
+  "id": "2026-04",
+  "po_date": "2026-04",
+  "label": "April 2026 fulfillment (ECO Food Pak invoice EC04866)",
+  "type": "monthly_cost",
+  "total_cost": 2158.18,
+  "ups_pickup": 49.73,
+  "note": "DHG monthly billing detail; cost side only"
+ }
+]

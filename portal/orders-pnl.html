@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<title>Order P&L — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:14px}
+  .kpi .label{font-size:10px;text-transform:uppercase;color:var(--text-muted);font-weight:600}
+  .kpi .value{font-size:24px;font-weight:700;color:var(--green);margin-top:3px;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+  table.pnl{width:100%;border-collapse:collapse;font-size:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  table.pnl th{background:var(--green);color:#fff;padding:8px 8px;text-align:right;font-size:10.5px;text-transform:uppercase;white-space:nowrap}
+  table.pnl th:first-child,table.pnl th:nth-child(2){text-align:left}
+  table.pnl td{padding:7px 8px;border-top:1px solid #f0f0ec;text-align:right;font-variant-numeric:tabular-nums}
+  table.pnl td:first-child,table.pnl td:nth-child(2){text-align:left}
+  table.pnl tr:hover td{background:#faf8f3}
+  .mono{font-family:'SF Mono',Consolas,monospace;font-size:11px}
+  .pos{color:#15803d;font-weight:600}.neg{color:#b91c1c;font-weight:600}
+  .est{background:#fef3c7;color:#92400e;font-size:9px;padding:1px 5px;border-radius:8px}
+  .conf{background:#dcfce7;color:#15803d;font-size:9px;padding:1px 5px;border-radius:8px}
+  .ctl{display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap}
+  .ctl select{padding:8px 10px;border:1px solid var(--border);border-radius:5px;font-size:13px}
+  .note{font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.5}
+  tfoot td{font-weight:700;border-top:2px solid var(--green);background:#eaf3ea}
+</style>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+  <main class="main">
+    <div class="main-header">
+      <div><h1>Order P&amp;L</h1><div class="subtitle">Per stocking order &middot; live costs from tlaps-prod</div></div>
+      <div class="row-actions"><a class="btn btn-secondary" href="costs.html">Costs &rarr;</a><a class="btn btn-secondary" href="dashboard.html">&larr; Dashboard</a></div>
+    </div>
+    <section class="section">
+      <div class="ctl">
+        <div><label style="font-size:10px;text-transform:uppercase;color:var(--text-muted);font-weight:600;display:block;margin-bottom:4px">Order</label>
+        <select id="order-sel"></select></div>
+      </div>
+      <div class="kpi-grid" id="kpis"></div>
+      <div id="body"><p class="muted">Loading&hellip;</p></div>
+      <div class="note" id="note"></div>
+    </section>
+  </main>
+</div>
+<script src="assets/portal.js"></script>
+<script>
+  requireAuth(); renderSidebar('orders-pnl');
+  const BOX_DEFAULT=1.0, NET_RATE=0.78, VC_RATE=0.78;
+  let INDEX=[];
+  init();
+  async function init(){
+    try{ INDEX=await (await fetch('../references/orders/index.json')).json(); }
+    catch(e){ document.getElementById('body').innerHTML='<p class="muted">No orders file found.</p>'; return; }
+    const sel=document.getElementById('order-sel');
+    INDEX.forEach(o=>sel.add(new Option(o.date+' — '+o.label, o.id)));
+    sel.addEventListener('change',()=>loadOrder(sel.value));
+    if(INDEX.length) loadOrder(INDEX[0].id);
+  }
+  function money(n){return (n<0?'-$':'$')+Math.abs(n).toFixed(2);}
+  function kpi(l,v,s){return '<div class="kpi"><div class="label">'+l+'</div><div class="value">'+v+'</div>'+(s?'<div class="sub">'+s+'</div>':'')+'</div>';}
+
+  async function loadOrder(id){
+    const meta=INDEX.find(o=>o.id===id);
+    const body=document.getElementById('body'), note=document.getElementById('note');
+    document.getElementById('kpis').innerHTML=''; note.innerHTML='';
+    if(meta.type==='monthly_cost'){ return loadHistorical(id); }
+    body.innerHTML='<p class="muted">Loading order &amp; live costs&hellip;</p>';
+    let order;
+    try{ order=await (await fetch('../references/orders/'+id+'.json')).json(); }
+    catch(e){ body.innerHTML='<p class="muted">Order file missing.</p>'; return; }
+    const skus=order.lines.map(l=>l.tlaps_sku).filter(Boolean);
+    const inlist=skus.map(s=>encodeURIComponent(s)).join(',');
+    let prod={};
+    try{
+      const rows=await sbGet('products?select=tlaps_sku,map_price,i3_cost,vc_cost,cost_confirmed&tlaps_sku=in.('+inlist+')');
+      rows.forEach(r=>prod[r.tlaps_sku]=r);
+    }catch(e){ body.innerHTML='<p class="muted">Cost load failed: '+escapeHtml(e.message)+'</p>'; return; }
+    const box=order.fees&&order.fees.box_per_unit!=null?order.fees.box_per_unit:BOX_DEFAULT;
+    let T={rev:0,cost:0,prof:0,units:0,est:0,skipped:0};
+    const rows=[];
+    order.lines.forEach(l=>{
+      const p=prod[l.tlaps_sku]||{};
+      const i3=p.i3_cost; const conf=p.cost_confirmed;
+      if(i3==null){ T.skipped++; rows.push({sku:l.tlaps_sku,skip:'no cost'}); return; }
+      let vc=p.vc_cost, vcsrc='conf';
+      if(vc==null){ vc=(p.map_price||0)*VC_RATE; vcsrc='est'; }
+      const net=vc*NET_RATE, costu=Number(i3)+box, profu=net-costu, qty=l.qty||0;
+      const lr=net*qty, lc=costu*qty, lp=profu*qty;
+      if(!conf) T.est++;
+      T.rev+=lr;T.cost+=lc;T.prof+=lp;T.units+=qty;
+      rows.push({sku:l.tlaps_sku,dhg:l.dhg_sku,qty,vc,net,i3:Number(i3),box,costu,profu,lr,lc,lp,
+                 marg:lr?lp/lr*100:0,conf,vcsrc});
+    });
+    document.getElementById('kpis').innerHTML=
+      kpi('Units',T.units,order.lines.length+' lines')+
+      kpi('I3 net revenue',money(T.rev),'0.78 × Amazon cost')+
+      kpi('I3 cost',money(T.cost),'confirmed + box fee')+
+      kpi('Gross profit',money(T.prof),'')+
+      kpi('Margin',(T.rev?(T.prof/T.rev*100).toFixed(1):'0')+'%','')+
+      kpi('Est-cost lines',T.est,'unconfirmed cost');
+    let html='<table class="pnl"><thead><tr><th>TLAPS SKU</th><th>DHG</th><th>Qty</th><th>Amazon cost</th><th>I3 net</th><th>Conf cost</th><th>Box</th><th>I3 cost/u</th><th>Profit/u</th><th>Line rev</th><th>Line profit</th><th>Margin</th></tr></thead><tbody>';
+    rows.forEach(r=>{
+      if(r.skip){ html+='<tr><td class="mono">'+escapeHtml(r.sku)+'</td><td colspan="11" class="muted">skipped — '+r.skip+'</td></tr>'; return; }
+      html+='<tr><td class="mono">'+escapeHtml(r.sku)+(r.conf?' <span class="conf">conf</span>':' <span class="est">est</span>')+'</td>'
+        +'<td class="mono">'+escapeHtml(r.dhg||'')+'</td><td>'+r.qty+'</td>'
+        +'<td>'+money(r.vc)+(r.vcsrc==='est'?'*':'')+'</td><td>'+money(r.net)+'</td><td>'+money(r.i3)+'</td><td>'+money(r.box)+'</td>'
+        +'<td>'+money(r.costu)+'</td><td class="'+(r.profu>=0?'pos':'neg')+'">'+money(r.profu)+'</td>'
+        +'<td>'+money(r.lr)+'</td><td class="'+(r.lp>=0?'pos':'neg')+'">'+money(r.lp)+'</td>'
+        +'<td>'+r.marg.toFixed(0)+'%</td></tr>';
+    });
+    html+='</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+T.units+'</td><td></td><td>'+money(T.rev)+'</td><td></td><td></td><td></td><td></td><td>'+money(T.rev)+'</td><td class="'+(T.prof>=0?'pos':'neg')+'">'+money(T.prof)+'</td><td>'+(T.rev?(T.prof/T.rev*100).toFixed(0):0)+'%</td></tr></tfoot></table>';
+    body.innerHTML=html;
+    note.innerHTML='Amazon cost price = vc_cost (what Amazon pays I3; * = estimated as MAP×0.78 where vc_cost not set). '
+      +'I3 net = 0.78 × Amazon cost price (after Amazon ~22% deductions). I3 cost/u = confirmed DHG cost + $'+box.toFixed(2)+'/unit box fee. '
+      +'Model-based — actual VC remittance may differ. Repack/labeling &amp; shared monthly UPS pickup not included. '
+      +'<b>est</b> = cost still estimated (not yet confirmed by Wendy).';
+  }
+  async function loadHistorical(id){
+    const body=document.getElementById('body');
+    let hist=[];
+    try{ hist=await (await fetch('../references/orders/historical.json')).json(); }catch(e){}
+    const h=hist.find(x=>x.id===id)||{};
+    document.getElementById('kpis').innerHTML=
+      kpi('Total cost',money(h.total_cost||0),'DHG invoice')+
+      (h.box_fees?kpi('Box fees',money(h.box_fees),''):'')+
+      (h.ups_pickup?kpi('UPS pickup',money(h.ups_pickup),''):'');
+    body.innerHTML='<p class="note">'+escapeHtml(h.note||'')+' This is DHG\'s monthly fulfillment billing (cost side). Revenue side requires the matching VC remittance.</p>';
+  }
+</script>
+</body>
+</html>

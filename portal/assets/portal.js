@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { id: 'nis',        label: 'NIS Readiness',    icon: 'N', href: 'nis-readiness.html' },
   { id: 'labels',     label: 'Labels',           icon: 'L', href: 'labels.html'     },
   { id: 'orders',     label: 'Orders',           icon: 'O', href: 'orders.html'     },
+  { id: 'orders-pnl', label: 'Order P&L',        icon: '$', href: 'orders-pnl.html' },
   { id: 'pablo',      label: 'Receiving (Pablo)',icon: 'R', href: 'pablo.html'      },
   { id: 'costs',      label: 'Costs',            icon: '$', href: 'costs.html'      },
   { id: 'media',      label: 'Media',            icon: 'M', href: 'media.html'      },
@@ -420,8 +421,4 @@ async function upsertBoxRow(dhgSku, tlapsSku, boxesOnHand, notes) {
     last_counted_at: new Date().toISOString(),
     updated_by: email || null
   };
-  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dhg_sku');
-  _boxInvCache = null;
-  await loadBoxInventory(true);
-  return result;
-}
+  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dh

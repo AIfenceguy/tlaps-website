@@ -1,0 +1,20 @@
+[
+ {
+  "id": "2026-06-08",
+  "date": "2026-06-08",
+  "label": "Stocking PO \u2014 51 SKUs / 4147 units",
+  "type": "stocking_po"
+ },
+ {
+  "id": "2026-05",
+  "date": "2026-05",
+  "label": "May 2026 fulfillment (ECO Food Pak invoice)",
+  "type": "monthly_cost"
+ },
+ {
+  "id": "2026-04",
+  "date": "2026-04",
+  "label": "April 2026 fulfillment (ECO Food Pak invoice EC04866)",
+  "type": "monthly_cost"
+ }
+]
