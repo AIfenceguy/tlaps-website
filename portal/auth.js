@@ -15,7 +15,8 @@
   //   python3 -c "import hashlib; print(hashlib.sha256(b'PASSWORD').hexdigest())"
   var VALID_USERS = {
     'jcool009@hotmail.com':    '556c91c548097c5f136472289620ec6f4bfc9f9523b1aa9b9893a682f711bf67',
-    'raypeng1118@hotmail.com': '102c7a6f67bd6f4718395ce080d9f95c848c78c334a437c664d992ad53528ae0'
+    'raypeng1118@hotmail.com': '102c7a6f67bd6f4718395ce080d9f95c848c78c334a437c664d992ad53528ae0',
+    'rtsui.jlconcepts@gmail.com': '2f18c5013a6151c7857c7e17f8729b04110d5e2530d6ba2a64fdf91c39758485'
   };
 
   var AUTH_KEY  = 'tlapsAuth';
