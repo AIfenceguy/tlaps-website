@@ -22,6 +22,7 @@ const SUPABASE_ANON_KEY =
 
 const NAV_ITEMS = [
   { id: 'dashboard',  label: 'Dashboard',        icon: 'D', href: 'dashboard.html'  },
+  { id: 'email',      label: 'Email Center',     icon: '@', href: 'email.html'      },
   { id: 'products',   label: 'Products',         icon: 'P', href: 'products.html'   },
   { id: 'variations', label: 'Variations',       icon: 'V', href: 'variations.html' },
   { id: 'nis',        label: 'NIS Readiness',    icon: 'N', href: 'nis-readiness.html' },
@@ -421,4 +422,7 @@ async function upsertBoxRow(dhgSku, tlapsSku, boxesOnHand, notes) {
     last_counted_at: new Date().toISOString(),
     updated_by: email || null
   };
-  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dh
+  const result = await sbUpsert('i3_warehouse_box_inventory', row, 'dhg_sku');
+  _boxInvCache = null; // invalidate cache so next load refetches
+  return result;
+}
