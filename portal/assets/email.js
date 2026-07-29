@@ -41,10 +41,27 @@ let sel = null;            // selected queue row
 let threadCache = {};      // threadId -> parsed messages
 let sendAsList = [];       // verified aliases
 let playbooks = [];
+let vipList = [];          // rows from supabase email_vip ("always include")
 let copHistory = [];       // {role, content}
 let lastClaudeDraft = '';
+let migrationPending = false;  // true if sql/09 columns are missing
 
 const $ = id => document.getElementById(id);
+
+// Hub aliases per forwarding label — used to auto-pick the From address.
+const ACCT_EMAIL = {
+  'acct/rickytsuiusa':   'rickytsuiusa@gmail.com',
+  'acct/envisioninginc': 'envisioninginc@gmail.com',
+  'acct/trucksadventures':'trucksadventures@gmail.com',
+  'acct/amazonkwan':     'amazon.kwan@gmail.com',
+  'acct/yeezyforever':   'yeezyforever1112@gmail.com'
+};
+function aliasFor(account) {
+  const want = ACCT_EMAIL[account];
+  if (want && sendAsList.some(a => a.sendAsEmail === want)) return want;
+  const primary = sendAsList.find(a => a.isPrimary);
+  return primary ? primary.sendAsEmail : '';
+}
 
 /* ================= CLASSIFIER ================= */
 const RX_URGENT = /(chargeback|charge-back|fraud|unauthorized|suspend|suspension|deactivat|funds (are )?on hold|past due|overdue|final notice|collections|immediate action|account.*(danger|risk)|security alert|verify your identity|violation notice|unauthorized seller)/i;
@@ -53,12 +70,70 @@ const RX_NOISE  = /(newsletter|unsubscribe|webinar|sale ends|% off|deal|promotio
 const NOISE_SENDERS = /(store-news@amazon|deals\.|selections\.|@e\.godaddy|stickermule|kalshi|snacks\.robinhood|patreon|skool\.com|hiltongrandvacations|emeritus|summithouse|marketing|noreply@ads\.)/i;
 const RX_MONEY  = /(refund|chargeback|return|dispute|payment|invoice|past due|payout|credit|reimburs|funds)/i;
 
+// Priority contacts + topics, hardcoded floor (roster as of Jul 29 2026).
+// The editable email_vip table layers on top of these at the same precedence —
+// these stay so the classifier still honors the roster if the table is missing
+// or unreachable. Add NEW people via Settings → Priority contacts, not here.
+const RX_VIP = /(contact\.jlconcepts@gmail\.com|laura chung|appsid@amazon\.com|appaiah|david nelson|account health|health rating|otdr|odr\b|late[- ]shipment|violation|listing (removed|suppressed)|at[- ]risk|deactivation|suspension)/i;
+const RX_DISRUPT = /(past[- ]due|collections|final notice|service (disruption|interruption)|account (will be )?(closed|terminated)|shut ?off|non-?payment)/i;
+
+/* --- editable inclusion list (email_vip) --- */
+async function loadVips() {
+  try {
+    vipList = await sbGet('email_vip?select=*&active=is.true&order=kind.asc,value.asc');
+  } catch (e) {
+    vipList = [];
+    console.warn('VIP list unavailable (run sql/09_email_vip_and_autodraft.sql?):', e.message);
+  }
+}
+function rxEscape(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function emailOf(from) {
+  const m = String(from || '').match(/<([^>]+)>/);
+  return (m ? m[1] : String(from || '')).trim().toLowerCase();
+}
+// Returns the matching email_vip row, or null.
+function vipMatch(from, subject, snippet) {
+  if (!vipList.length) return null;
+  const addr = emailOf(from);
+  const domain = addr.split('@')[1] || '';
+  const hay = ((from || '') + ' ' + (subject || '') + ' ' + (snippet || '')).toLowerCase();
+  for (const v of vipList) {
+    const val = String(v.value || '').trim().toLowerCase();
+    if (!val) continue;
+    if (v.kind === 'sender') {
+      if (addr === val || addr.includes(val) || (from || '').toLowerCase().includes(val)) return v;
+    } else if (v.kind === 'domain') {
+      const d = val.replace(/^@/, '');
+      if (domain === d || domain.endsWith('.' + d)) return v;
+    } else if (v.kind === 'keyword') {
+      // word-boundary match so short tokens (ODR, MAP) don't fire inside other words
+      if (new RegExp('(^|[^a-z0-9])' + rxEscape(val) + '([^a-z0-9]|$)', 'i').test(hay)) return v;
+    }
+  }
+  return null;
+}
+
+// Returns { category, vip_reason } or null. Priority contacts/topics are
+// checked FIRST — a VIP hit is never dropped by the noise filter.
 function classify(from, subject, snippet) {
-  const s = (subject||'') + ' ' + (snippet||'');
-  if (NOISE_SENDERS.test(from||'') || RX_NOISE.test(s)) return null;      // skip noise entirely
-  if (RX_URGENT.test(s)) return 'URGENT';
-  if (RX_ACTION.test(s)) return 'ACTION';
+  const s = (subject || '') + ' ' + (snippet || '');
+  const f = from || '';
+  const vip = vipMatch(f, subject, snippet);
+  if (vip) return { category: vip.category || 'URGENT', vip_reason: vip.label || (vip.kind + ': ' + vip.value) };
+  if (RX_VIP.test(f) || RX_VIP.test(s) || RX_DISRUPT.test(s)) return { category: 'URGENT', vip_reason: 'priority contact/topic' };
+  if (NOISE_SENDERS.test(f) || RX_NOISE.test(s)) return null;             // skip noise entirely
+  if (RX_URGENT.test(s)) return { category: 'URGENT', vip_reason: null };
+  if (RX_ACTION.test(s)) return { category: 'ACTION', vip_reason: null };
   return null;                                                            // FYI -> not queued (actionable-only v1)
+}
+
+// Platform cases (eBay/Amazon) are resolved in Seller Hub / Seller Central,
+// not by replying to the notification email — so never auto-draft a reply.
+const PLATFORM_SENDERS = /(@ebay\.com|@reply\.ebay\.com|@members\.ebay|@amazon\.com|@marketplace\.amazon|@sellercentral)/i;
+const RX_CASE_LANG = /(case|claim|a-to-z|dispute|return request|item not received|seller hub|seller central|performance notification)/i;
+function isPlatformCase(row) {
+  return PLATFORM_SENDERS.test(row.sender || '') &&
+         RX_CASE_LANG.test((row.subject || '') + ' ' + (row.snippet || ''));
 }
 
 /* ================= GOOGLE AUTH ================= */
@@ -132,6 +207,7 @@ async function loadSendAs() {
 async function syncInbox() {
   $('btn-sync').disabled = true; $('btn-sync').textContent = 'Syncing…';
   try {
+    await loadVips();   // always sweep with the latest inclusion list
     const existing = {}; queue.forEach(r => { if (r.thread_id) existing[r.thread_id] = r; });
     let added = 0, seen = new Set();
     for (const label of EC.ACCOUNTS) {
@@ -147,22 +223,38 @@ async function syncInbox() {
           md = await gm(`messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
         } catch (e) { continue; }
         const h = {}; (md.payload.headers || []).forEach(x => h[x.name.toLowerCase()] = x.value);
-        const cat = classify(h.from, h.subject, md.snippet);
-        if (!cat) continue;
+        const hit = classify(h.from, h.subject, md.snippet);
+        if (!hit) continue;
         const row = {
-          thread_id: m.threadId, source: 'hub', account: label, category: cat,
+          thread_id: m.threadId, source: 'hub', account: label, category: hit.category,
           subject: h.subject || '(no subject)', sender: h.from || '',
           snippet: (md.snippet || '').slice(0, 300),
           gmail_link: 'https://mail.google.com/mail/u/0/#all/' + m.threadId,
           money_flag: RX_MONEY.test((h.subject||'') + ' ' + (md.snippet||'')),
+          vip_reason: hit.vip_reason,
           status: 'new', last_activity: h.date ? new Date(h.date).toISOString() : new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        try { await sbUpsert('email_queue', row, 'thread_id'); added++; } catch (e) { console.warn('upsert', e); }
+        row.no_autodraft = isPlatformCase(row);   // platform cases resolve in Seller Hub, not by email
+        try {
+          await sbUpsert('email_queue', row, 'thread_id'); added++;
+        } catch (e) {
+          // sql/09 not applied yet -> retry without the columns it adds
+          if (/column|schema cache/i.test(e.message || '')) {
+            const legacy = Object.assign({}, row);
+            delete legacy.vip_reason; delete legacy.no_autodraft;
+            try { await sbUpsert('email_queue', legacy, 'thread_id'); added++; migrationPending = true; }
+            catch (e2) { console.warn('upsert', e2); }
+          } else { console.warn('upsert', e); }
+        }
       }
     }
     await loadQueue();
     toast(`Sync done — ${added} new actionable item(s)`, added ? 'success' : 'info');
+    if (migrationPending) {
+      $('setup-note').style.display = '';
+      $('setup-note').innerHTML = 'Priority contacts + auto-draft need one migration: run <code>sql/09_email_vip_and_autodraft.sql</code> in the Supabase SQL editor. Classification still works from the built-in list until then.';
+    }
   } catch (e) { toast('Sync failed: ' + e.message, 'error'); }
   $('btn-sync').disabled = false; $('btn-sync').textContent = 'Sync inbox';
 }
@@ -198,8 +290,10 @@ function renderQueue() {
     <div class="qi ${sel && sel.id === r.id ? 'sel' : ''}" data-id="${r.id}">
       <div class="top">
         <span class="cat ${r.category}">${r.category}</span>
+        ${r.vip_reason ? `<span class="vip-tag" title="Priority: ${escapeHtml(r.vip_reason)}">★</span>` : ''}
         <span class="acct-tag">${escapeHtml((r.account||'').replace('acct/',''))}</span>
         ${r.money_flag ? '<span class="money">💰</span>' : ''}
+        ${r.draft_body ? `<span class="draft-tag" title="${r.draft_source === 'claude' ? 'Claude drafted a suggested reply' : 'Draft saved'}">✎ ${r.draft_source === 'claude' ? 'Draft ready' : 'Draft'}</span>` : ''}
         <span class="st ${r.status}">${r.status}</span>
         <span style="margin-left:auto">${r.last_activity ? new Date(r.last_activity).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
       </div>
@@ -225,6 +319,13 @@ function extractBody(payload) {
   for (const part of (payload.parts || [])) { const t = extractBody(part); if (t) return t; }
   return '';
 }
+function parseThread(t) {
+  return (t.messages || []).map(m => {
+    const h = {}; (m.payload.headers || []).forEach(x => h[x.name.toLowerCase()] = x.value);
+    return { from: h.from||'', to: h.to||'', date: h.date||'', subject: h.subject||'',
+             msgId: h['message-id']||'', body: extractBody(m.payload) || m.snippet || '' };
+  });
+}
 
 async function openItem(id) {
   sel = queue.find(r => String(r.id) === String(id));
@@ -234,6 +335,10 @@ async function openItem(id) {
   $('cop-log').innerHTML = '<div class="ec-empty" style="padding:20px">Context loaded — ask away.</div>';
   $('money-banner').style.display = sel.money_flag ? '' : 'none';
   $('t-meta').innerHTML = `<a href="${sel.gmail_link}" target="_blank" style="color:var(--green)">open in Gmail ↗</a>`;
+  $('c-noauto').checked = !!sel.no_autodraft;
+  setDraftStatus(sel.draft_source === 'claude' && sel.draft_body
+    ? '✎ Claude drafted this — review and edit before sending.' : '',
+    'ok');
 
   // deadline sniffing
   const dl = ((sel.subject||'') + ' ' + (sel.snippet||'')).match(/(respond|reply|confirm|ship|by)\s+(by\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}/i);
@@ -244,12 +349,7 @@ async function openItem(id) {
   $('c-subj').value = /^re:/i.test(sel.subject || '') ? sel.subject : 'Re: ' + (sel.subject || '');
   $('c-body').value = sel.draft_body || '';
   // best-guess From: match account alias
-  const acctEmailMap = {
-    'acct/rickytsuiusa':'rickytsuiusa@gmail.com', 'acct/envisioninginc':'envisioninginc@gmail.com',
-    'acct/trucksadventures':'trucksadventures@gmail.com', 'acct/amazonkwan':'amazon.kwan@gmail.com',
-    'acct/yeezyforever':'yeezyforever1112@gmail.com'
-  };
-  const want = acctEmailMap[sel.account];
+  const want = aliasFor(sel.account);
   if (want && [...$('c-from').options].some(o => o.value === want)) $('c-from').value = want;
   $('btn-send').disabled = false;
 
@@ -257,18 +357,14 @@ async function openItem(id) {
   if (!sel.thread_id) {
     $('thread').innerHTML = (dl?`<div class="deadline-banner">⏰ Possible deadline: “${escapeHtml(dl[0])}” — verify in the email.</div>`:'') +
       `<div class="ec-empty">Backlog item (lives outside the hub).<br><a target="_blank" href="${sel.gmail_link}" class="btn btn-secondary" style="margin-top:10px;display:inline-block">Open source account ↗</a></div>`;
+    maybeAutoDraft(sel, null);   // snippet-only draft for backlog rows
     return;
   }
   $('thread').innerHTML = '<div class="ec-empty">Loading thread…</div>';
   try {
     let msgs = threadCache[sel.thread_id];
     if (!msgs) {
-      const t = await gm('threads/' + sel.thread_id + '?format=full');
-      msgs = (t.messages || []).map(m => {
-        const h = {}; (m.payload.headers || []).forEach(x => h[x.name.toLowerCase()] = x.value);
-        return { from: h.from||'', to: h.to||'', date: h.date||'', subject: h.subject||'',
-                 msgId: h['message-id']||'', body: extractBody(m.payload) || m.snippet || '' };
-      });
+      msgs = parseThread(await gm('threads/' + sel.thread_id + '?format=full'));
       threadCache[sel.thread_id] = msgs;
     }
     $('thread').innerHTML =
@@ -281,7 +377,8 @@ async function openItem(id) {
         </div>
         <div class="mb">${escapeHtml(m.body)}</div>
       </div>`).join('');
-    if (sel.status === 'new') updateRow(sel.id, { status: 'in_progress' });
+    if (sel.status === 'new') await updateRow(sel.id, { status: 'in_progress' });
+    maybeAutoDraft(sel, msgs);
   } catch (e) {
     $('thread').innerHTML = `<div class="ec-empty">Could not load thread: ${escapeHtml(e.message)}<br><a target="_blank" href="${sel.gmail_link}">Open in Gmail ↗</a></div>`;
   }
@@ -289,19 +386,36 @@ async function openItem(id) {
 
 async function updateRow(id, patch) {
   patch.updated_at = new Date().toISOString();
-  const res = await fetch(SUPABASE_URL + '/rest/v1/email_queue?id=eq.' + id, {
+  const put = body => fetch(SUPABASE_URL + '/rest/v1/email_queue?id=eq.' + id, {
     method: 'PATCH', headers: sbHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=representation' }),
-    body: JSON.stringify(patch)
+    body: JSON.stringify(body)
   });
-  if (res.ok) { const [row] = await res.json(); const i = queue.findIndex(r => r.id === id);
-    if (i >= 0) queue[i] = row; if (sel && sel.id === id) sel = row; renderQueue(); }
+  let res = await put(patch);
+  if (!res.ok) {
+    const txt = await res.text();
+    // sql/09 not applied yet -> retry without the columns it adds, so the rest still saves
+    if (/column|schema cache/i.test(txt)) {
+      const legacy = Object.assign({}, patch);
+      delete legacy.draft_source; delete legacy.no_autodraft; delete legacy.vip_reason;
+      migrationPending = true;
+      res = await put(legacy);
+    }
+    if (!res.ok) { console.warn('updateRow', id, txt.slice(0, 200)); return; }
+  }
+  const [row] = await res.json();
+  if (!row) return;
+  const i = queue.findIndex(r => r.id === id);
+  if (i >= 0) queue[i] = row;
+  if (sel && sel.id === id) sel = row;
+  renderQueue();
 }
-async function logAction(action, extra) {
+async function logAction(action, extra, row) {
+  const r = row || sel;
   try {
     await fetch(SUPABASE_URL + '/rest/v1/email_actions', {
       method: 'POST', headers: sbHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(Object.assign({
-        queue_id: sel ? sel.id : null, thread_id: sel ? sel.thread_id : null,
+        queue_id: r ? r.id : null, thread_id: r ? r.thread_id : null,
         action, actor: sessionStorage.getItem(EMAIL_KEY) || ''
       }, extra || {}))
     });
@@ -371,6 +485,209 @@ function extractDraftBlock(text) {
   return (parts.length > 1 ? parts[parts.length - 1] : text).trim();
 }
 
+/* ================= PROACTIVE DRAFTS =================
+ * Claude pre-writes a suggested reply so Ricky reviews/edits instead of
+ * starting from a blank composer. STILL DRAFT-ONLY — this never sends, it
+ * only fills draft_body and flips status to 'drafted'. Money items are
+ * drafted as "needs your decision" and never commit to an amount.
+ */
+const AUTODRAFT_KEY = 'tlaps_ec_autodraft';
+function autoDraftEnabled() { return localStorage.getItem(AUTODRAFT_KEY) !== 'off'; }
+
+function setDraftStatus(msg, kind) {
+  const el = $('draft-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.display = msg ? '' : 'none';
+  el.className = 'draft-status' + (kind ? ' ' + kind : '');
+}
+
+// Best-effort playbook match so the draft follows the owner's handling rules.
+function pickPlaybook(row) {
+  if (!playbooks.length) return null;
+  const hay = ((row.subject || '') + ' ' + (row.snippet || '') + ' ' + (row.sender || '')).toLowerCase();
+  let best = null, bestScore = 0;
+  for (const p of playbooks) {
+    const tokens = ((p.name || '') + ' ' + (p.trigger_hint || ''))
+      .toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 3);
+    let score = 0; const seen = new Set();
+    for (const t of tokens) { if (seen.has(t)) continue; seen.add(t); if (hay.includes(t)) score++; }
+    if (score > bestScore) { bestScore = score; best = p; }
+  }
+  return bestScore >= 2 ? best : null;   // require 2 hits so we don't misapply a playbook
+}
+
+function draftPrompt(money) {
+  return [
+    'Pre-draft a reply to this email so I can review and edit it — I have not read it yet.',
+    money
+      ? 'MONEY ITEM: this thread involves a refund / return / payment / chargeback. Do NOT approve, refuse, or commit to any amount. Draft it so it acknowledges the message and asks for anything still missing, and leave the actual decision to me — mark that spot inline as [MY DECISION: ...].'
+      : '',
+    'Return ONLY the reply body. No subject line, no preamble, no explanation, no markdown fences.',
+    'Keep it short, plain and professional.',
+    'If a fact is missing, leave a [BRACKETED PLACEHOLDER] rather than inventing it.'
+  ].filter(Boolean).join('\n');
+}
+
+async function copilotDraft(row, bodyTxt) {
+  const code = localStorage.getItem('tlaps_copilot_code') || '';
+  if (!code) throw new Error('copilot access code not set');
+  const pb = pickPlaybook(row);
+  const res = await fetch(EC.COPILOT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+    body: JSON.stringify({
+      access_code: code,
+      messages: [{ role: 'user', content: draftPrompt(row.money_flag) }],
+      email: {
+        account: row.account, sender: row.sender, subject: row.subject,
+        category: row.category, money_flag: row.money_flag,
+        body: bodyTxt || row.snippet || '', snippet: row.snippet
+      },
+      playbook: pb ? { name: pb.name, instructions: pb.instructions } : null
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || ('HTTP ' + res.status));
+  return extractDraftBlock(data.reply || '');
+}
+
+// Generate + persist a suggested reply. Returns true if a draft was stored.
+async function autoDraft(row, bodyTxt, force) {
+  if (!row) return false;
+  if (!force) {
+    if (row.no_autodraft) return false;
+    if (row.draft_body) return false;                                  // don't clobber existing work
+    if (['sent', 'done', 'dismissed'].includes(row.status)) return false;
+    if (isPlatformCase(row)) return false;                             // resolve in Seller Hub, not by email
+  }
+  const body = await copilotDraft(row, bodyTxt);
+  if (!body) return false;
+  const toAddr = ((row.sender || '').match(/<([^>]+)>/) || [null, row.sender])[1] || '';
+  const subj = /^re:/i.test(row.subject || '') ? row.subject : 'Re: ' + (row.subject || '');
+  await updateRow(row.id, {
+    status: ['sent', 'done', 'dismissed'].includes(row.status) ? row.status : 'drafted',
+    draft_body: body, draft_from: aliasFor(row.account), draft_to: toAddr,
+    draft_subject: subj, draft_source: 'claude'
+  });
+  logAction('draft_autogenerated', { subject: subj, body_preview: body.slice(0, 300) }, row);
+  return true;
+}
+
+// Fired when a thread is opened — silent no-op if prerequisites are missing.
+async function maybeAutoDraft(row, msgs) {
+  if (!row || !autoDraftEnabled()) return;
+  if (row.no_autodraft || row.draft_body) return;
+  if (['sent', 'done', 'dismissed'].includes(row.status)) return;
+  if (!localStorage.getItem('tlaps_copilot_code')) return;   // settings not configured yet
+  if (isPlatformCase(row)) {
+    setDraftStatus('Platform case — handle it in Seller Hub / Seller Central. No reply drafted.', 'muted');
+    return;
+  }
+  setDraftStatus('Claude is drafting a suggested reply…', 'busy');
+  try {
+    const ok = await autoDraft(row, threadText(msgs) || row.snippet);
+    if (!sel || sel.id !== row.id) return;                   // user moved on — don't touch the composer
+    if (ok) {
+      if (!$('c-body').value.trim()) $('c-body').value = sel.draft_body || '';
+      setDraftStatus('✎ Claude drafted this — review and edit before sending.', 'ok');
+    } else { setDraftStatus(''); }
+  } catch (e) {
+    setDraftStatus('Auto-draft unavailable: ' + e.message, 'muted');
+  }
+}
+
+function threadText(msgs) {
+  if (!msgs || !msgs.length) return '';
+  return msgs.map(m => `[${m.from} — ${m.date}]\n${m.body}`).join('\n\n---\n\n');
+}
+
+// Batch: pre-draft every open URGENT item that doesn't have one yet.
+async function draftAllUrgent() {
+  if (!localStorage.getItem('tlaps_copilot_code')) {
+    toast('Set the copilot access code in Settings first', 'warning');
+    $('set-modal').classList.add('open'); return;
+  }
+  const OPEN = ['new', 'in_progress', 'drafted'];
+  const targets = queue.filter(r => r.category === 'URGENT' && OPEN.includes(r.status) &&
+    !r.draft_body && !r.no_autodraft && !isPlatformCase(r));
+  if (!targets.length) { toast('No urgent items need a draft', 'info'); return; }
+  if (!confirm(`Pre-draft replies for ${targets.length} urgent item(s)?\n\nNothing is sent — drafts only.`)) return;
+
+  const btn = $('btn-draftall');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+  for (let i = 0; i < targets.length; i++) {
+    btn.textContent = `Drafting ${i + 1}/${targets.length}…`;
+    try {
+      let bodyTxt = targets[i].snippet || '';
+      if (targets[i].thread_id && gmailReady()) {
+        try {
+          let msgs = threadCache[targets[i].thread_id];
+          if (!msgs) {
+            msgs = parseThread(await gm('threads/' + targets[i].thread_id + '?format=full'));
+            threadCache[targets[i].thread_id] = msgs;
+          }
+          bodyTxt = threadText(msgs) || bodyTxt;
+        } catch (e) { /* fall back to the snippet */ }
+      }
+      if (await autoDraft(targets[i], bodyTxt)) done++;
+    } catch (e) { failed++; console.warn('autodraft', targets[i].id, e.message); }
+  }
+  btn.disabled = false; btn.textContent = '✎ Draft all urgent';
+  toast(`Drafted ${done} item(s)` + (failed ? `, ${failed} failed` : ''), done ? 'success' : 'warning');
+}
+
+/* ================= PRIORITY CONTACTS EDITOR ================= */
+function renderVips() {
+  const el = $('vip-list');
+  if (!el) return;
+  if (!vipList.length) {
+    el.innerHTML = '<div class="vip-empty">Nothing yet — add a person below, or run <code>sql/09_email_vip_and_autodraft.sql</code> to load the starting roster.</div>';
+    return;
+  }
+  el.innerHTML = vipList.map(v => `
+    <div class="vip-row">
+      <span class="vip-kind">${escapeHtml(v.kind)}</span>
+      <span class="vip-val">${escapeHtml(v.value)}</span>
+      <span class="vip-lab">${escapeHtml(v.label || '')}</span>
+      <span class="cat ${v.category}">${escapeHtml(v.category)}</span>
+      <button class="vip-del" data-id="${escapeHtml(v.id)}" title="Remove">&times;</button>
+    </div>`).join('');
+  el.querySelectorAll('.vip-del').forEach(b => b.addEventListener('click', () => removeVip(b.dataset.id)));
+}
+
+async function addVip() {
+  const value = $('vip-value').value.trim();
+  if (!value) { toast('Enter an email, domain, or phrase', 'warning'); return; }
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/email_vip', {
+      method: 'POST', headers: sbHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=representation' }),
+      body: JSON.stringify({ kind: $('vip-kind').value, value,
+        label: $('vip-label').value.trim() || null, category: $('vip-cat').value })
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(/duplicate key/i.test(txt) ? 'already on the list'
+        : /relation .*email_vip.* does not exist/i.test(txt) ? 'run sql/09_email_vip_and_autodraft.sql first'
+        : txt.slice(0, 160));
+    }
+    $('vip-value').value = ''; $('vip-label').value = '';
+    await loadVips(); renderVips();
+    toast('Added — applies on the next sync', 'success');
+  } catch (e) { toast('Could not add: ' + e.message, 'error'); }
+}
+
+async function removeVip(id) {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/email_vip?id=eq.' + encodeURIComponent(id),
+      { method: 'DELETE', headers: sbHeaders() });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadVips(); renderVips();
+    toast('Removed', 'success');
+  } catch (e) { toast('Could not remove: ' + e.message, 'error'); }
+}
+
 /* ================= SEND ================= */
 function b64urlEncode(str) {
   return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -423,9 +740,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initGsi();
   loadQueue().catch(e => toast('Queue load failed (run the SQL migration?): ' + e.message, 'error'));
   loadPlaybooks();
+  loadVips().then(renderVips);
 
   $('btn-gmail').addEventListener('click', connectGmail);
   $('btn-sync').addEventListener('click', syncInbox);
+  $('btn-draftall').addEventListener('click', draftAllUrgent);
   document.querySelectorAll('#filters .ec-chip[data-f]').forEach(c =>
     c.addEventListener('click', () => { c.classList.toggle('on'); renderQueue(); }));
   $('f-acct').addEventListener('change', renderQueue);
@@ -442,9 +761,38 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btn-savedraft').addEventListener('click', async () => {
     if (!sel) { toast('Select an email first', 'warning'); return; }
     await updateRow(sel.id, { status: 'drafted', draft_from: $('c-from').value, draft_to: $('c-to').value,
-      draft_subject: $('c-subj').value, draft_body: $('c-body').value });
+      draft_subject: $('c-subj').value, draft_body: $('c-body').value, draft_source: 'human' });
     logAction('draft_saved', { subject: $('c-subj').value, body_preview: $('c-body').value.slice(0, 300) });
+    setDraftStatus('');
     toast('Draft saved', 'success');
+  });
+
+  // force a fresh Claude draft for the selected item, overwriting what's there
+  $('btn-draftnow').addEventListener('click', async () => {
+    if (!sel) { toast('Select an email first', 'warning'); return; }
+    if (!localStorage.getItem('tlaps_copilot_code')) {
+      toast('Set the copilot access code in Settings first', 'warning');
+      $('set-modal').classList.add('open'); return;
+    }
+    if ($('c-body').value.trim() && !confirm('Replace the current draft with a fresh one from Claude?')) return;
+    const row = sel;
+    $('btn-draftnow').disabled = true;
+    setDraftStatus('Claude is drafting a suggested reply…', 'busy');
+    try {
+      const ok = await autoDraft(row, threadText(threadCache[row.thread_id]) || row.snippet, true);
+      if (sel && sel.id === row.id && ok) {
+        $('c-body').value = sel.draft_body || '';
+        setDraftStatus('✎ Claude drafted this — review and edit before sending.', 'ok');
+      }
+    } catch (e) { setDraftStatus('Draft failed: ' + e.message, 'muted'); toast('Draft failed: ' + e.message, 'error'); }
+    $('btn-draftnow').disabled = false;
+  });
+
+  // per-item opt-out (platform cases etc.)
+  $('c-noauto').addEventListener('change', async () => {
+    if (!sel) return;
+    await updateRow(sel.id, { no_autodraft: $('c-noauto').checked });
+    toast($('c-noauto').checked ? 'Auto-draft off for this item' : 'Auto-draft on for this item', 'info');
   });
   $('btn-send').addEventListener('click', openSendModal);
   $('m-confirm').addEventListener('click', reallySend);
@@ -452,11 +800,16 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btn-settings').addEventListener('click', () => {
     $('set-code').value = localStorage.getItem('tlaps_copilot_code') || '';
     $('set-gcid').value = localStorage.getItem('tlaps_ec_gcid') || '';
+    $('set-autodraft').checked = autoDraftEnabled();
+    loadVips().then(renderVips);
     $('set-modal').classList.add('open');
   });
+  $('vip-add').addEventListener('click', addVip);
+  $('vip-value').addEventListener('keydown', e => { if (e.key === 'Enter') addVip(); });
   $('set-save').addEventListener('click', () => {
     localStorage.setItem('tlaps_copilot_code', $('set-code').value.trim());
     localStorage.setItem('tlaps_ec_gcid', $('set-gcid').value.trim());
+    localStorage.setItem(AUTODRAFT_KEY, $('set-autodraft').checked ? 'on' : 'off');
     EC.GOOGLE_CLIENT_ID = $('set-gcid').value.trim();
     $('set-modal').classList.remove('open');
     toast('Settings saved', 'success');

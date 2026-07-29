@@ -38,6 +38,8 @@
   .st.sent{background:#dcfce7;color:#15803d} .st.drafted{background:#e0f2fe;color:#0369a1}
   .acct-tag { font-size:10px; color:#3b6e57; background:#eaf5ee; border-radius:9px; padding:1px 7px; }
   .money { font-size:10px; background:#fde68a; color:#78350f; border-radius:9px; padding:1px 7px; font-weight:700; }
+  .draft-tag { font-size:10px; background:#e0f2fe; color:#0369a1; border-radius:9px; padding:1px 7px; font-weight:700; }
+  .vip-tag { font-size:11px; color:#b45309; font-weight:700; }
 
   /* thread */
   .ec-thread { max-height: calc(100vh - 240px); overflow-y:auto; padding:12px 14px; }
@@ -78,11 +80,35 @@
   .btn-send:disabled { background:#d1d5db; cursor:not-allowed; }
   .money-banner { background:#fef3c7; border:1px solid #fcd34d; color:#78350f; font-size:12px;
     border-radius:6px; padding:7px 10px; font-weight:600; }
+  .draft-status { font-size:11.5px; border-radius:6px; padding:6px 9px; }
+  .draft-status.ok { background:#e0f2fe; border:1px solid #7dd3fc; color:#075985; font-weight:600; }
+  .draft-status.busy { background:#f1f5f9; border:1px solid var(--border); color:#475569; }
+  .draft-status.muted { background:#f8fafc; border:1px solid var(--border); color:#64748b; }
+  .opt-out { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .opt-out input { width:auto; flex:none; }
+
+  /* priority contacts editor (settings modal) */
+  .vip-list { max-height:190px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; }
+  .vip-empty { padding:14px; font-size:12px; color:var(--text-muted); text-align:center; }
+  .vip-row { display:flex; align-items:center; gap:7px; padding:5px 8px; border-bottom:1px solid #f0f2ef; font-size:12px; }
+  .vip-row:last-child { border-bottom:none; }
+  .vip-kind { font-size:10px; text-transform:uppercase; color:#3b6e57; background:#eaf5ee;
+    border-radius:9px; padding:1px 7px; flex-shrink:0; }
+  .vip-val { font-weight:600; word-break:break-all; }
+  .vip-lab { color:var(--text-muted); font-size:11px; margin-left:auto; text-align:right;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:190px; }
+  .vip-del { background:none; border:none; color:#b91c1c; font-size:17px; line-height:1;
+    cursor:pointer; padding:0 3px; flex-shrink:0; }
+  .vip-add { display:flex; gap:6px; margin-top:8px; }
+  .vip-add select, .vip-add input { padding:6px 8px; border:1px solid var(--border);
+    border-radius:5px; font:inherit; font-size:12px; min-width:0; }
+  .vip-add #vip-value { flex:2; } .vip-add #vip-label { flex:2; }
 
   /* confirm modal */
   .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000; }
   .modal-bg.open { display:flex; }
-  .modal { background:#fff; border-radius:10px; max-width:560px; width:92%; padding:22px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .modal { background:#fff; border-radius:10px; max-width:560px; width:92%; padding:22px;
+    box-shadow:0 24px 60px rgba(0,0,0,.3); max-height:88vh; overflow-y:auto; }
   .modal h4 { margin:0 0 12px; color:#b91c1c; font-size:16px; }
   .modal .kv { font-size:13px; margin:4px 0; } .modal .kv b { display:inline-block; width:70px; color:var(--text-muted); }
   .modal .preview { background:#f8faf8; border:1px solid var(--border); border-radius:6px; padding:10px;
@@ -108,6 +134,7 @@
         <button class="btn btn-ghost" id="btn-settings">Settings</button>
         <button class="gbtn" id="btn-gmail">Connect Gmail</button>
         <button class="btn btn-secondary" id="btn-sync" disabled>Sync inbox</button>
+        <button class="btn btn-secondary" id="btn-draftall" title="Pre-draft replies for every open urgent item. Drafts only — nothing sends.">&#9998; Draft all urgent</button>
       </div>
     </div>
 
@@ -165,13 +192,16 @@
             <div class="rowx"><label>From</label><select id="c-from"><option value="">Connect Gmail to load send-as aliases…</option></select></div>
             <div class="rowx"><label>To</label><input id="c-to" type="text" placeholder="recipient"></div>
             <div class="rowx"><label>Subject</label><input id="c-subj" type="text"></div>
+            <div class="draft-status" id="draft-status" style="display:none"></div>
             <textarea id="c-body" placeholder="Write here, or click 'Use as draft' on a Claude suggestion…"></textarea>
             <div class="actions">
               <button class="btn btn-secondary" id="btn-usedraft">⬅ Use Claude's last draft</button>
+              <button class="btn btn-secondary" id="btn-draftnow" title="Ask Claude for a fresh suggested reply">&#9998; Draft now</button>
               <button class="btn btn-ghost" id="btn-savedraft">Save draft</button>
               <span class="spacer" style="flex:1"></span>
               <button class="btn-send" id="btn-send" disabled>Review &amp; Send</button>
             </div>
+            <label class="opt-out"><input type="checkbox" id="c-noauto"> Don't auto-draft this one (platform case / handle elsewhere)</label>
           </div>
         </div>
       </div>
@@ -203,6 +233,33 @@
     <input id="set-code" type="password" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:5px" placeholder="access code">
     <div class="kv" style="margin:12px 0 4px">Google OAuth Client ID (from Google Cloud console):</div>
     <input id="set-gcid" type="text" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:5px" placeholder="xxxxx.apps.googleusercontent.com">
+
+    <label class="opt-out" style="margin:14px 0 0;font-size:12.5px;color:var(--text)">
+      <input type="checkbox" id="set-autodraft" checked>
+      Let Claude pre-draft a suggested reply when I open an actionable email
+    </label>
+    <div style="font-size:11px;color:var(--text-muted);margin:3px 0 0 20px">
+      Drafts only — nothing is ever sent without the confirm modal. Money items are drafted as
+      &ldquo;needs your decision&rdquo; and never commit to an amount.
+    </div>
+
+    <div class="kv" style="margin:16px 0 6px">
+      <b style="width:auto;color:var(--text)">Priority contacts</b> &mdash; always surfaced as
+      actionable, even if the noise filter would drop them:
+    </div>
+    <div id="vip-list" class="vip-list"></div>
+    <div class="vip-add">
+      <select id="vip-kind">
+        <option value="sender">Sender</option>
+        <option value="domain">Domain</option>
+        <option value="keyword">Keyword</option>
+      </select>
+      <input id="vip-value" placeholder="email, domain, or phrase">
+      <input id="vip-label" placeholder="who / why (optional)">
+      <select id="vip-cat"><option>URGENT</option><option>ACTION</option></select>
+      <button class="btn btn-secondary" id="vip-add">Add</button>
+    </div>
+
     <div class="btns">
       <button class="btn btn-ghost" onclick="document.getElementById('set-modal').classList.remove('open')">Close</button>
       <button class="btn btn-primary" id="set-save">Save</button>
