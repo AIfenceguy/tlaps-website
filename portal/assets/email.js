@@ -74,8 +74,9 @@ const RX_MONEY  = /(refund|chargeback|return|dispute|payment|invoice|past due|pa
 // The editable email_vip table layers on top of these at the same precedence —
 // these stay so the classifier still honors the roster if the table is missing
 // or unreachable. Add NEW people via Settings → Priority contacts, not here.
-const RX_VIP = /(contact\.jlconcepts@gmail\.com|laura chung|appsid@amazon\.com|appaiah|david nelson|account health|health rating|otdr|odr\b|late[- ]shipment|violation|listing (removed|suppressed)|at[- ]risk|deactivation|suspension)/i;
-const RX_DISRUPT = /(past[- ]due|collections|final notice|service (disruption|interruption)|account (will be )?(closed|terminated)|shut ?off|non-?payment)/i;
+// VIP roster: Laura Chung (finance/AP), David Nelson (ERP dev/support), Appaiah (Amazon mgr), + Amazon account-health.
+const RX_VIP    = /(laura\s*chung|contact\.jlconcepts|david\s*nelson|appsid@amazon|vendor\s*manager|account\s*manager|account\s*health|health\s*rating|otdr|selling\s*privilege|brand\s*registry)/i;
+const RX_DISRUPT= /(disrupt|interruption of service|service (interruption|will be|may be|is being)|will be (suspend|deactivat|disabl|terminat|paus|remov|shut)|shut\s?off|loss of (selling|buying) privilege|at risk of (deactivat|suspend|removal)|account (deactivat|suspend)|listing removed|going to be removed|past due|overdue|final notice|shut down)/i;
 
 /* --- editable inclusion list (email_vip) --- */
 async function loadVips() {

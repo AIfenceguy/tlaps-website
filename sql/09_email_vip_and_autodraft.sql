@@ -73,11 +73,17 @@ INSERT INTO email_vip (kind, value, label, category) VALUES
     ('sender',  'appsid@amazon.com',            'Appaiah — Amazon manager (Amazon Connect calls)',    'URGENT'),
     ('keyword', 'david nelson',                 'David Nelson — ERP developer/support',               'URGENT'),
 
+    -- People, by role rather than name (matches signature blocks / intros)
+    ('keyword', 'vendor manager',      'Assigned vendor manager',          'URGENT'),
+    ('keyword', 'account manager',     'Assigned account manager',         'URGENT'),
+
     -- Amazon account-health topics
     ('keyword', 'account health',      'Amazon account health',            'URGENT'),
     ('keyword', 'health rating',       'Amazon account health rating',     'URGENT'),
     ('keyword', 'OTDR',                'On-time delivery rate',            'URGENT'),
     ('keyword', 'ODR',                 'Order defect rate',                'URGENT'),
+    ('keyword', 'selling privilege',   'Selling privileges at risk',       'URGENT'),
+    ('keyword', 'brand registry',      'Brand Registry',                   'URGENT'),
     ('keyword', 'late shipment',       'Late shipment rate',               'URGENT'),
     ('keyword', 'late-shipment',       'Late shipment rate (hyphenated)',  'URGENT'),
     ('keyword', 'violation',           'Policy violation notice',          'URGENT'),
@@ -91,7 +97,11 @@ INSERT INTO email_vip (kind, value, label, category) VALUES
     -- Money / continuity notices, any account
     ('keyword', 'past due',            'Past due notice',                  'URGENT'),
     ('keyword', 'past-due',            'Past due notice (hyphenated)',     'URGENT'),
+    ('keyword', 'overdue',             'Overdue notice',                   'URGENT'),
+    -- 'collections' and 'non-payment' are NOT in the RX_DISRUPT floor, so these
+    -- table rows are the only thing catching them. Don't delete them lightly.
     ('keyword', 'collections',         'Collections notice',               'URGENT'),
+    ('keyword', 'non-payment',         'Non-payment notice',               'URGENT'),
     ('keyword', 'final notice',        'Final notice',                     'URGENT'),
     ('keyword', 'service disruption',  'Service disruption notice',        'URGENT'),
     ('keyword', 'service interruption','Service interruption notice',      'URGENT')
