@@ -74,9 +74,23 @@ const RX_MONEY  = /(refund|chargeback|return|dispute|payment|invoice|past due|pa
 // The editable email_vip table layers on top of these at the same precedence —
 // these stay so the classifier still honors the roster if the table is missing
 // or unreachable. Add NEW people via Settings → Priority contacts, not here.
-// VIP roster: Laura Chung (finance/AP), David Nelson (ERP dev/support), Appaiah (Amazon mgr), + Amazon account-health.
-const RX_VIP    = /(laura\s*chung|contact\.jlconcepts|david\s*nelson|appsid@amazon|vendor\s*manager|account\s*manager|account\s*health|health\s*rating|otdr|selling\s*privilege|brand\s*registry)/i;
-const RX_DISRUPT= /(disrupt|interruption of service|service (interruption|will be|may be|is being)|will be (suspend|deactivat|disabl|terminat|paus|remov|shut)|shut\s?off|loss of (selling|buying) privilege|at risk of (deactivat|suspend|removal)|account (deactivat|suspend)|listing removed|going to be removed|past due|overdue|final notice|shut down)/i;
+// VIP roster (Jul 29 2026):
+//   Laura Chung (finance/AP)              contact.jlconcepts@gmail.com
+//   David Nelson / Dyntech (ERP support)  david@ / pete@ / servers@ dynenttech.com
+//   Appaiah + Amazon account health       appsid@amazon.com, shaqbus@amazon.com
+//   Majestic Realty (landlord)            DMoya@ / MRivera@ majesticrealty.com
+//   WarehouseOS / WOS (WMS)               *@warehouseos.com, *@hoj.net
+//   Connected Business / eShopCONNECT     connectedbusiness.com + "CB" keywords
+//   Tierzero (internet, acct 439)         billing@tierzero.com
+const VIP_SENDERS = /(contact\.jlconcepts|appsid@amazon|shaqbus@amazon|majesticrealty|dynenttech|warehouseos|@hoj\.net|tierzero|connectedbusiness)/i;
+const RX_VIP    = /(laura\s*chung|contact\.jlconcepts|david\s*nelson|appsid@amazon|dyn\s*ent\s*tech|dyntech|majestic|warehouse\s*os|\bwos\b|warehouse mobile solutions|connected\s*business|connectedbusiness|eshopconnect|tier\s*zero|tierzero|vendor\s*manager|account\s*manager|account\s*health|health\s*rating|otdr|selling\s*privilege|brand\s*registry)/i;
+const RX_DISRUPT= /(disrupt|interruption of service|service (interruption|down|will be|may be|is being)|servers? (are )?down|outage|stopped but should be running|will be (suspend|deactivat|disabl|terminat|paus|remov|shut)|shut\s?off|loss of (selling|buying) privilege|at risk of (deactivat|suspend|removal)|account (deactivat|suspend)|listing removed|going to be removed|past due|overdue|final notice|shut down)/i;
+// Routine-but-wanted VIP mail (release notices, bills) -> queue as ACTION, not URGENT,
+// so the urgent bucket stays meaningful.
+const VIP_ROUTINE = /(release note|release notice|maintenance window|scheduled maintenance|invoice|statement|receipt|payment posted|upgrade|update)/i;
+// Automated heartbeats from VIP senders that are not worth queueing at all
+// (e.g. the daily servers@dynenttech.com "JLC Stock Totals *** SUCCESS ***").
+const VIP_MUTE    = /(\*\*\* ?success ?\*\*\*|no issue found|nothing to report)/i;
 
 /* --- editable inclusion list (email_vip) --- */
 async function loadVips() {
@@ -114,14 +128,25 @@ function vipMatch(from, subject, snippet) {
   return null;
 }
 
-// Returns { category, vip_reason } or null. Priority contacts/topics are
-// checked FIRST — a VIP hit is never dropped by the noise filter.
+// Returns { category, vip_reason } or null. Precedence:
+//   service disruption -> VIP (mute -> routine -> urgent) -> noise -> urgent -> action.
+// A VIP hit is never dropped by the noise filter.
 function classify(from, subject, snippet) {
   const s = (subject || '') + ' ' + (snippet || '');
   const f = from || '';
+  // Anything down, stopped, or about to be shut off outranks everything, any sender.
+  if (RX_DISRUPT.test(s)) return { category: 'URGENT', vip_reason: 'service disruption / past due' };
   const vip = vipMatch(f, subject, snippet);
-  if (vip) return { category: vip.category || 'URGENT', vip_reason: vip.label || (vip.kind + ': ' + vip.value) };
-  if (RX_VIP.test(f) || RX_VIP.test(s) || RX_DISRUPT.test(s)) return { category: 'URGENT', vip_reason: 'priority contact/topic' };
+  if (vip) {
+    if (VIP_MUTE.test(s)) return null;                                    // automated heartbeat
+    return { category: vip.category || 'URGENT', vip_reason: vip.label || (vip.kind + ': ' + vip.value) };
+  }
+  if (VIP_SENDERS.test(f) || RX_VIP.test(f) || RX_VIP.test(s)) {
+    if (VIP_MUTE.test(s)) return null;                                    // automated heartbeat
+    return VIP_ROUTINE.test(s)
+      ? { category: 'ACTION', vip_reason: 'priority contact — routine notice' }
+      : { category: 'URGENT', vip_reason: 'priority contact/topic' };
+  }
   if (NOISE_SENDERS.test(f) || RX_NOISE.test(s)) return null;             // skip noise entirely
   if (RX_URGENT.test(s)) return { category: 'URGENT', vip_reason: null };
   if (RX_ACTION.test(s)) return { category: 'ACTION', vip_reason: null };
