@@ -82,8 +82,10 @@ const RX_MONEY  = /(refund|chargeback|return|dispute|payment|invoice|past due|pa
 //   WarehouseOS / WOS (WMS)               *@warehouseos.com, *@hoj.net
 //   Connected Business / eShopCONNECT     connectedbusiness.com + "CB" keywords
 //   Tierzero (internet, acct 439)         billing@tierzero.com
-const VIP_SENDERS = /(contact\.jlconcepts|appsid@amazon|shaqbus@amazon|majesticrealty|dynenttech|warehouseos|@hoj\.net|tierzero|connectedbusiness)/i;
-const RX_VIP    = /(laura\s*chung|contact\.jlconcepts|david\s*nelson|appsid@amazon|dyn\s*ent\s*tech|dyntech|majestic|warehouse\s*os|\bwos\b|warehouse mobile solutions|connected\s*business|connectedbusiness|eshopconnect|tier\s*zero|tierzero|vendor\s*manager|account\s*manager|account\s*health|health\s*rating|otdr|selling\s*privilege|brand\s*registry)/i;
+//   Parts Authority (WD supplier)         *@partsauthority.com - Lisa, Russell Chernick
+//   DCi / LeadVenture (product data)      *@leadventure.com, *@dcinews.com - Craig, Brad
+const VIP_SENDERS = /(contact\.jlconcepts|appsid@amazon|shaqbus@amazon|majesticrealty|dynenttech|warehouseos|@hoj\.net|tierzero|connectedbusiness|partsauthority|leadventure|dcinews)/i;
+const RX_VIP    = /(laura\s*chung|contact\.jlconcepts|david\s*nelson|appsid@amazon|dyn\s*ent\s*tech|dyntech|majestic|warehouse\s*os|\bwos\b|warehouse mobile solutions|connected\s*business|connectedbusiness|eshopconnect|tier\s*zero|tierzero|parts\s*authority|partsauthority|chernick|leadventure|\bdci\b|vendor\s*manager|account\s*manager|account\s*health|health\s*rating|otdr|selling\s*privilege|brand\s*registry)/i;
 const RX_DISRUPT= /(disrupt|interruption of service|service (interruption|down|will be|may be|is being)|servers? (are )?down|outage|stopped but should be running|will be (suspend|deactivat|disabl|terminat|paus|remov|shut)|shut\s?off|loss of (selling|buying) privilege|at risk of (deactivat|suspend|removal)|account (deactivat|suspend)|listing removed|going to be removed|past due|overdue|final notice|shut down)/i;
 // Routine-but-wanted VIP mail (release notices, bills) -> queue as ACTION, not URGENT,
 // so the urgent bucket stays meaningful.
@@ -139,7 +141,14 @@ function classify(from, subject, snippet) {
   const vip = vipMatch(f, subject, snippet);
   if (vip) {
     if (VIP_MUTE.test(s)) return null;                                    // automated heartbeat
-    return { category: vip.category || 'URGENT', vip_reason: vip.label || (vip.kind + ': ' + vip.value) };
+    const why = vip.label || (vip.kind + ': ' + vip.value);
+    // A whole-company rule (sender/domain) still gets the routine tier: the daily
+    // "Parts Authority Invoice/Credit" blast lands in ACTION, not URGENT. Topic
+    // keywords (suspension, ODR, past due) keep whatever category the row sets.
+    if ((vip.kind === 'sender' || vip.kind === 'domain') && (vip.category || 'URGENT') === 'URGENT' && VIP_ROUTINE.test(s)) {
+      return { category: 'ACTION', vip_reason: why + ' — routine notice' };
+    }
+    return { category: vip.category || 'URGENT', vip_reason: why };
   }
   if (VIP_SENDERS.test(f) || RX_VIP.test(f) || RX_VIP.test(s)) {
     if (VIP_MUTE.test(s)) return null;                                    // automated heartbeat
