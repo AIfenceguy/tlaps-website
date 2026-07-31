@@ -321,9 +321,10 @@ function renderQueue() {
   });
   $('q-count').textContent = rows.length + ' item(s)';
   if (!rows.length) { $('queue').innerHTML = '<div class="ec-empty">Nothing here — sync, or loosen the filters.</div>'; return; }
-  $('queue').innerHTML = rows.map(r => `
+  $('queue').innerHTML = rows.map((r, i) => `
     <div class="qi ${sel && sel.id === r.id ? 'sel' : ''}" data-id="${r.id}">
       <div class="top">
+        <span class="qi-num">${i + 1}</span>
         <span class="cat ${r.category}">${r.category}</span>
         ${r.vip_reason ? `<span class="vip-tag" title="Priority: ${escapeHtml(r.vip_reason)}">★</span>` : ''}
         <span class="acct-tag">${escapeHtml((r.account||'').replace('acct/',''))}</span>
@@ -331,11 +332,15 @@ function renderQueue() {
         ${r.draft_body ? `<span class="draft-tag" title="${r.draft_source === 'claude' ? 'Claude drafted a suggested reply' : 'Draft saved'}">✎ ${r.draft_source === 'claude' ? 'Draft ready' : 'Draft'}</span>` : ''}
         <span class="st ${r.status}">${r.status}</span>
         <span style="margin-left:auto">${r.last_activity ? new Date(r.last_activity).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
+        ${DONE.includes(r.status) ? '' : `<button class="qi-done" data-done="${r.id}" title="Archive out of the hub inbox and mark done">✓</button>`}
       </div>
       <div class="subj">${escapeHtml(r.subject || '')}</div>
       <div class="snip">${escapeHtml((r.sender||'').replace(/<.*>/,''))} — ${escapeHtml(r.snippet || '')}</div>
     </div>`).join('');
   document.querySelectorAll('.qi').forEach(el => el.addEventListener('click', () => openItem(el.dataset.id)));
+  document.querySelectorAll('.qi-done').forEach(el => el.addEventListener('click', ev => {
+    ev.stopPropagation(); markDone(el.dataset.done);
+  }));
 }
 
 /* ================= THREAD VIEW ================= */
@@ -747,6 +752,49 @@ function openSendModal() {
   $('send-modal').classList.add('open');
 }
 
+/* Archive a hub thread (drop the INBOX label). Returns true only if Gmail
+ * confirmed it. Never throws — the reply has already gone out by the time this
+ * runs, so a label failure is a warning, not a send failure. */
+async function archiveThread(threadId) {
+  try {
+    await gm('threads/' + threadId + '/modify',
+      { method: 'POST', body: JSON.stringify({ removeLabelIds: ['INBOX'] }) });
+    return true;
+  } catch (e) {
+    console.warn('archive', e);
+    toast('Reply sent, but the thread stayed in the inbox: ' + e.message, 'warning');
+    return false;
+  }
+}
+
+/* Styles for the per-item check-off button. Injected from here so the whole
+ * archive feature lives in one file. */
+(function () {
+  const st = document.createElement('style');
+  st.textContent = '.qi-done{border:1px solid #cfe0d4;background:#fff;color:#2f7d4f;border-radius:4px;'
+    + 'font-size:11px;line-height:1;padding:3px 6px;margin-left:6px;cursor:pointer;flex:none}'
+    + '.qi-done:hover{background:#2f7d4f;color:#fff;border-color:#2f7d4f}'
+    + '.qi-done:disabled{opacity:.45;cursor:default}'
+    + '.qi-num{display:inline-block;min-width:20px;text-align:right;color:#9aa5a0;'
+    + 'font-variant-numeric:tabular-nums;font-weight:600;flex:none}';
+  document.head.appendChild(st);
+})();
+
+/* Check an item off without replying: archive it out of the hub inbox and mark
+ * the queue row done. The mail is never deleted — it drops the INBOX label and
+ * stays in All Mail, and the copy in the originating account is untouched. */
+async function markDone(id) {
+  const row = queue.find(r => String(r.id) === String(id));
+  if (!row) return;
+  const btn = document.querySelector('.qi-done[data-done="' + id + '"]');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const archived = row.thread_id ? await archiveThread(row.thread_id) : false;
+  await updateRow(row.id, { status: 'done' });
+  logAction('done', { subject: row.subject || '' }, row);
+  if (archived) logAction('archived', { subject: row.subject || '' }, row);
+  toast('Checked off' + (archived ? ' — archived out of the hub inbox' : ''), 'success');
+}
+
 async function reallySend() {
   $('m-confirm').disabled = true; $('m-confirm').textContent = 'Sending…';
   try {
@@ -758,13 +806,21 @@ async function reallySend() {
     const payload = { raw: buildRaw($('c-from').value, $('c-to').value.trim(), $('c-subj').value, $('c-body').value, inReplyTo, references) };
     if (sel && sel.thread_id) payload.threadId = sel.thread_id;
     await gm('messages/send', { method: 'POST', body: JSON.stringify(payload) });
-    toast('Sent ✓ as ' + $('c-from').value, 'success');
     $('send-modal').classList.remove('open');
+    // Clear the answered thread out of the hub inbox. Gmail archive = remove the
+    // INBOX label only; the mail is still in All Mail and still fully searchable,
+    // and the copy in the originating account (rickytsuiusa etc.) is untouched.
+    // A failure here must never look like a failed send, so it only warns.
+    const archived = sel && sel.thread_id ? await archiveThread(sel.thread_id) : false;
+    toast('Sent ✓ as ' + $('c-from').value + (archived ? ' — archived out of the hub inbox' : ''), 'success');
     if (sel) {
       await updateRow(sel.id, { status: 'sent', draft_from: $('c-from').value, draft_to: $('c-to').value,
         draft_subject: $('c-subj').value, draft_body: $('c-body').value });
       logAction('sent', { from_alias: $('c-from').value, to_addr: $('c-to').value,
         subject: $('c-subj').value, body_preview: $('c-body').value.slice(0, 300) });
+      // separate row rather than a column on 'sent' — email_actions has a fixed
+      // column set and an unknown key would make the whole insert fail silently
+      if (archived) logAction('archived', { subject: $('c-subj').value });
     }
   } catch (e) { toast('Send failed: ' + e.message, 'error'); }
   $('m-confirm').disabled = false; $('m-confirm').textContent = 'Send now';
