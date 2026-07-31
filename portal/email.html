@@ -172,23 +172,6 @@
 
       <div class="ec-right">
         <div class="ec-panel">
-          <h3>💬 Discuss with Claude
-            <span class="mini"><select id="playbook" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:2px 4px"><option value="">No playbook</option></select></span>
-          </h3>
-          <div class="cop-quick">
-            <button data-q="Draft a reply for this email.">✍️ Draft reply</button>
-            <button data-q="How should I handle this type of email? Teach me the approach, then give a template.">🎓 Show me how</button>
-            <button data-q="Summarize this thread and tell me the one thing I must do.">⚡ TL;DR</button>
-            <button data-q="Make the draft shorter and friendlier.">✂️ Shorter</button>
-          </div>
-          <div class="cop-log" id="cop-log"><div class="ec-empty" style="padding:30px">Pick an email, then ask me anything about it.</div></div>
-          <div class="cop-input">
-            <textarea id="cop-text" placeholder="e.g. draft a firm but polite reply asking for a statement of all open invoices"></textarea>
-            <button class="btn btn-primary" id="cop-send">Ask</button>
-          </div>
-        </div>
-
-        <div class="ec-panel">
           <h3>✉️ Reply — you review, you send</h3>
           <div class="cmp">
             <div class="money-banner" id="money-banner" style="display:none">💰 Money item — refund/return/payment decisions are yours. Nothing here moves money; email only.</div>
@@ -207,6 +190,23 @@
             <label class="opt-out"><input type="checkbox" id="c-noauto"> Don't auto-draft this one (platform case / handle elsewhere)</label>
           </div>
         </div>
+        <div class="ec-panel">
+          <h3>💬 Discuss with Claude
+            <span class="mini"><select id="playbook" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:2px 4px"><option value="">No playbook</option></select></span>
+          </h3>
+          <div class="cop-quick">
+            <button data-q="Draft a reply for this email.">✍️ Draft reply</button>
+            <button data-q="How should I handle this type of email? Teach me the approach, then give a template.">🎓 Show me how</button>
+            <button data-q="Summarize this thread and tell me the one thing I must do.">⚡ TL;DR</button>
+            <button data-q="Make the draft shorter and friendlier.">✂️ Shorter</button>
+          </div>
+          <div class="cop-log" id="cop-log"><div class="ec-empty" style="padding:30px">Pick an email, then ask me anything about it.</div></div>
+          <div class="cop-input">
+            <textarea id="cop-text" placeholder="e.g. draft a firm but polite reply asking for a statement of all open invoices"></textarea>
+            <button class="btn btn-primary" id="cop-send">Ask</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
