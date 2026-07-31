@@ -19,8 +19,8 @@ const EC = {
   SCOPES: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.settings.basic',
   COPILOT_URL: SUPABASE_URL + '/functions/v1/email-copilot',
   ACCOUNTS: ['acct/rickytsuiusa','acct/envisioninginc','acct/trucksadventures','acct/amazonkwan','acct/yeezyforever'],
-  SYNC_WINDOW: 'newer_than:30d',
-  PER_LABEL: 30
+  SYNC_WINDOW: 'newer_than:90d',
+  PER_LABEL: 150
 };
 
 /* ================= PAGE GATE ================= */
@@ -297,31 +297,75 @@ async function syncInbox() {
 /* ================= QUEUE (Supabase) ================= */
 async function loadQueue() {
   queue = await sbGet('email_queue?select=*&order=category.asc,last_activity.desc.nullslast&limit=400');
+  refreshAccountFilter();
   renderQueue();
 }
 
 function activeFilters() {
   const chips = [...document.querySelectorAll('#filters .ec-chip.on')];
+  const sortEl = $('f-sort');
   return {
     cats: chips.filter(c => c.dataset.f === 'cat').map(c => c.dataset.v),
     sts:  chips.filter(c => c.dataset.f === 'st').map(c => c.dataset.v),
-    acct: $('f-acct').value
+    acct: $('f-acct').value,
+    sort: sortEl ? sortEl.value : 'action'
   };
+}
+
+/* Rebuild the mailbox dropdown from the rows that actually came back, so every
+ * mailbox in the queue is selectable (the old hard-coded list silently omitted
+ * any account that only ever appears on backlog rows) and each one carries its
+ * own open-item count. The current selection is preserved across rebuilds. */
+function refreshAccountFilter() {
+  const el = $('f-acct');
+  if (!el) return;
+  const OPEN = ['new','in_progress','drafted'];
+  const counts = {};
+  queue.forEach(r => {
+    const a = r.account || '(unassigned)';
+    if (!counts[a]) counts[a] = { open: 0, total: 0 };
+    counts[a].total++;
+    if (OPEN.includes(r.status)) counts[a].open++;
+  });
+  const names = Object.keys(counts).sort((a, b) => counts[b].open - counts[a].open || a.localeCompare(b));
+  const openAll = queue.filter(r => OPEN.includes(r.status)).length;
+  const keep = el.value;
+  el.innerHTML = `<option value="">All mailboxes (${openAll} open)</option>`
+    + names.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a.replace('acct/',''))} — ${counts[a].open} open / ${counts[a].total}</option>`).join('');
+  el.value = [...el.options].some(o => o.value === keep) ? keep : '';
 }
 
 function renderQueue() {
   const f = activeFilters();
   const OPEN = ['new','in_progress','drafted'], DONE = ['sent','done','dismissed'];
+  const CATRANK = { URGENT: 0, ACTION: 1 };
   const rows = queue.filter(r => {
     if (f.cats.length && !f.cats.includes(r.category)) return false;
     const isOpen = OPEN.includes(r.status);
     if (!((f.sts.includes('open') && isOpen) || (f.sts.includes('done') && !isOpen))) return false;
-    if (f.acct && r.account !== f.acct) return false;
+    if (f.acct && (r.account || '(unassigned)') !== f.acct) return false;
     return true;
   });
-  $('q-count').textContent = rows.length + ' item(s)';
+  const ts = r => r.last_activity ? new Date(r.last_activity).getTime() : 0;
+  if (f.sort === 'newest')      rows.sort((a, b) => ts(b) - ts(a));
+  else if (f.sort === 'oldest') rows.sort((a, b) => ts(a) - ts(b));
+  else if (f.sort === 'mailbox') rows.sort((a, b) =>
+    String(a.account||'').localeCompare(String(b.account||''))
+    || (CATRANK[a.category] ?? 9) - (CATRANK[b.category] ?? 9) || ts(b) - ts(a));
+  else rows.sort((a, b) => (CATRANK[a.category] ?? 9) - (CATRANK[b.category] ?? 9) || ts(b) - ts(a));
+  $('q-count').textContent = rows.length + ' item(s)'
+    + (f.acct ? ' in ' + f.acct.replace('acct/','') : '');
   if (!rows.length) { $('queue').innerHTML = '<div class="ec-empty">Nothing here — sync, or loosen the filters.</div>'; return; }
-  $('queue').innerHTML = rows.map((r, i) => `
+  // group headers make a single mailbox readable at a glance; the numbering
+  // stays continuous 1..N across the whole visible list either way
+  const groupOf = r => f.sort === 'mailbox' ? (r.account || '(unassigned)').replace('acct/','')
+    : f.sort === 'action' ? r.category : '';
+  let lastGroup = null;
+  $('queue').innerHTML = rows.map((r, i) => {
+    const g = groupOf(r);
+    const head = (g && g !== lastGroup) ? `<div class="qi-group">${escapeHtml(g)}</div>` : '';
+    lastGroup = g;
+    return head + `
     <div class="qi ${sel && sel.id === r.id ? 'sel' : ''}" data-id="${r.id}">
       <div class="top">
         <span class="qi-num">${i + 1}</span>
@@ -332,11 +376,12 @@ function renderQueue() {
         ${r.draft_body ? `<span class="draft-tag" title="${r.draft_source === 'claude' ? 'Claude drafted a suggested reply' : 'Draft saved'}">✎ ${r.draft_source === 'claude' ? 'Draft ready' : 'Draft'}</span>` : ''}
         <span class="st ${r.status}">${r.status}</span>
         <span style="margin-left:auto">${r.last_activity ? new Date(r.last_activity).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
-        ${DONE.includes(r.status) ? '' : `<button class="qi-done" data-done="${r.id}" title="Archive out of the hub inbox and mark done">✓</button>`}
+        ${['done','dismissed'].includes(r.status) ? '' : `<button class="qi-done" data-done="${r.id}" title="Remove from the hub inbox (stays in All Mail) and mark done">Archive</button>`}
       </div>
       <div class="subj">${escapeHtml(r.subject || '')}</div>
       <div class="snip">${escapeHtml((r.sender||'').replace(/<.*>/,''))} — ${escapeHtml(r.snippet || '')}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   document.querySelectorAll('.qi').forEach(el => el.addEventListener('click', () => openItem(el.dataset.id)));
   document.querySelectorAll('.qi-done').forEach(el => el.addEventListener('click', ev => {
     ev.stopPropagation(); markDone(el.dataset.done);
@@ -371,6 +416,7 @@ async function openItem(id) {
   sel = queue.find(r => String(r.id) === String(id));
   if (!sel) return;
   renderQueue();
+  syncArchiveBtn();
   copHistory = []; lastClaudeDraft = '';
   $('cop-log').innerHTML = '<div class="ec-empty" style="padding:20px">Context loaded — ask away.</div>';
   $('money-banner').style.display = sel.money_flag ? '' : 'none';
@@ -753,8 +799,8 @@ function openSendModal() {
 }
 
 /* Archive a hub thread (drop the INBOX label). Returns true only if Gmail
- * confirmed it. Never throws — the reply has already gone out by the time this
- * runs, so a label failure is a warning, not a send failure. */
+ * confirmed it. Never throws — archiving is always a deliberate, separate action,
+ * so a label failure is reported as a warning and nothing else is rolled back. */
 async function archiveThread(threadId) {
   try {
     await gm('threads/' + threadId + '/modify',
@@ -762,27 +808,32 @@ async function archiveThread(threadId) {
     return true;
   } catch (e) {
     console.warn('archive', e);
-    toast('Reply sent, but the thread stayed in the inbox: ' + e.message, 'warning');
+    toast('Could not archive — the thread stayed in the hub inbox: ' + e.message, 'warning');
     return false;
   }
 }
 
-/* Styles for the per-item check-off button. Injected from here so the whole
- * archive feature lives in one file. */
+/* Styles for the per-item Archive button, the queue numbering and the group
+ * headers. Injected from here so the whole feature lives in one file. */
 (function () {
   const st = document.createElement('style');
   st.textContent = '.qi-done{border:1px solid #cfe0d4;background:#fff;color:#2f7d4f;border-radius:4px;'
-    + 'font-size:11px;line-height:1;padding:3px 6px;margin-left:6px;cursor:pointer;flex:none}'
+    + 'font-size:10px;line-height:1;padding:3px 6px;margin-left:6px;cursor:pointer;flex:none;white-space:nowrap}'
     + '.qi-done:hover{background:#2f7d4f;color:#fff;border-color:#2f7d4f}'
     + '.qi-done:disabled{opacity:.45;cursor:default}'
     + '.qi-num{display:inline-block;min-width:20px;text-align:right;color:#9aa5a0;'
-    + 'font-variant-numeric:tabular-nums;font-weight:600;flex:none}';
+    + 'font-variant-numeric:tabular-nums;font-weight:600;flex:none}'
+    + '.qi-group{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+    + 'color:#6b7a72;background:#f2f5f3;border-radius:4px;padding:4px 8px;margin:10px 0 4px}'
+    + '.qi-group:first-child{margin-top:0}'
+    + '#btn-archive{margin-left:8px}';
   document.head.appendChild(st);
 })();
 
-/* Check an item off without replying: archive it out of the hub inbox and mark
- * the queue row done. The mail is never deleted — it drops the INBOX label and
- * stays in All Mail, and the copy in the originating account is untouched. */
+/* Archive one item out of the hub inbox and mark the queue row done. Nothing is
+ * ever deleted — the thread only drops the INBOX label, stays in All Mail and
+ * stays fully searchable, and the copy in the originating account is untouched.
+ * Backlog rows have no hub thread, so they are just marked done. */
 async function markDone(id) {
   const row = queue.find(r => String(r.id) === String(id));
   if (!row) return;
@@ -792,7 +843,24 @@ async function markDone(id) {
   await updateRow(row.id, { status: 'done' });
   logAction('done', { subject: row.subject || '' }, row);
   if (archived) logAction('archived', { subject: row.subject || '' }, row);
-  toast('Checked off' + (archived ? ' — archived out of the hub inbox' : ''), 'success');
+  toast(archived ? 'Archived out of the hub inbox' : 'Cleared from the queue', 'success');
+  syncArchiveBtn();
+}
+
+/* The Archive button in the Thread panel header mirrors the per-row one, so a
+ * reply can be archived right after sending without hunting for the row. */
+function syncArchiveBtn() {
+  const b = $('btn-archive');
+  if (!b) return;
+  const DONEST = ['sent','done','dismissed'];
+  if (!sel) { b.style.display = 'none'; return; }
+  b.style.display = '';
+  const already = ['done','dismissed'].includes(sel.status);
+  b.disabled = already;
+  b.textContent = already ? 'Archived' : 'Archive';
+  b.title = sel.thread_id
+    ? 'Remove this thread from the hub inbox (it stays in All Mail) and mark it done'
+    : 'Backlog item — no hub copy to archive; this just clears it from the queue';
 }
 
 async function reallySend() {
@@ -807,20 +875,14 @@ async function reallySend() {
     if (sel && sel.thread_id) payload.threadId = sel.thread_id;
     await gm('messages/send', { method: 'POST', body: JSON.stringify(payload) });
     $('send-modal').classList.remove('open');
-    // Clear the answered thread out of the hub inbox. Gmail archive = remove the
-    // INBOX label only; the mail is still in All Mail and still fully searchable,
-    // and the copy in the originating account (rickytsuiusa etc.) is untouched.
-    // A failure here must never look like a failed send, so it only warns.
-    const archived = sel && sel.thread_id ? await archiveThread(sel.thread_id) : false;
-    toast('Sent ✓ as ' + $('c-from').value + (archived ? ' — archived out of the hub inbox' : ''), 'success');
+    // Sending never archives. The thread stays in the hub inbox until the user
+    // presses Archive, so keeping a thread visible after replying is the default.
+    toast('Sent ✓ as ' + $('c-from').value + ' — use Archive when you want it out of the hub', 'success');
     if (sel) {
       await updateRow(sel.id, { status: 'sent', draft_from: $('c-from').value, draft_to: $('c-to').value,
         draft_subject: $('c-subj').value, draft_body: $('c-body').value });
       logAction('sent', { from_alias: $('c-from').value, to_addr: $('c-to').value,
         subject: $('c-subj').value, body_preview: $('c-body').value.slice(0, 300) });
-      // separate row rather than a column on 'sent' — email_actions has a fixed
-      // column set and an unknown key would make the whole insert fail silently
-      if (archived) logAction('archived', { subject: $('c-subj').value });
     }
   } catch (e) { toast('Send failed: ' + e.message, 'error'); }
   $('m-confirm').disabled = false; $('m-confirm').textContent = 'Send now';
@@ -839,6 +901,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#filters .ec-chip[data-f]').forEach(c =>
     c.addEventListener('click', () => { c.classList.toggle('on'); renderQueue(); }));
   $('f-acct').addEventListener('change', renderQueue);
+  if ($('f-sort')) $('f-sort').addEventListener('change', renderQueue);
+  if ($('btn-archive')) $('btn-archive').addEventListener('click', () => {
+    if (sel) markDone(sel.id);
+  });
+  syncArchiveBtn();
 
   $('cop-send').addEventListener('click', () => copAsk($('cop-text').value));
   $('cop-text').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) copAsk($('cop-text').value); });
