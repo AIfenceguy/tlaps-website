@@ -146,6 +146,283 @@
       <span class="ec-chip on" data-f="st" data-v="open">Open</span>
       <span class="ec-chip" data-f="st" data-v="done">Done/Sent</span>
       <span class="spacer"></span>
+      <select id="f-acct" class="ec-chip" style="padding:5px 10px" title="Show one mailbox at a time">
+        <option value="">All mailboxes</option>
+      </select>
+      <select id="f-sort" class="ec-chip" style="padding:5px 10px" title="Order the queue">
+        <option value="action">Sort: action type</option>
+        <option value="newest">Sort: newest first</option>
+        <option value="oldest">Sort: oldest first</option>
+        <option value="mailbox">Sort: mailbox, then action</option>
+      </select>
+    </div>
+
+    <div class="ec-grid">
+      <div class="ec-panel">
+        <h3>Queue <span class="mini" id="q-count"></span></h3>
+        <div class="ec-queue" id="queue"><div class="ec-empty">Connect Gmail, then Sync.</div></div>
+      </div>
+
+      <div class="ec-panel">
+        <h3>Thread <span class="mini" id="t-meta"></span>
+          <button id="btn-archive" class="btn btn-secondary" style="display:none;float:right;font-size:11px;padding:3px 12px" title="Remove from the hub inbox (stays in All Mail) and mark done">Archive</button>
+        </h3>
+        <div class="ec-thread" id="thread"><div class="ec-empty">Select an email from the queue.</div></div>
+      </div>
+
+      <div class="ec-right">
+        <div class="ec-panel">
+          <h3>💬 Discuss with Claude
+            <span class="mini"><select id="playbook" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:2px 4px"><option value="">No playbook</option></select></span>
+          </h3>
+          <div class="cop-quick">
+            <button data-q="Draft a reply for this email.">✍️ Draft reply</button>
+            <button data-q="How should I handle this type of email? Teach me the approach, then give a template.">🎓 Show me how</button>
+            <button data-q="Summarize this thread and tell me the one thing I must do.">⚡ TL;DR</button>
+            <button data-q="Make the draft shorter and friendlier.">✂️ Shorter</button>
+          </div>
+          <div class="cop-log" id="cop-log"><div class="ec-empty" style="padding:30px">Pick an email, then ask me anything about it.</div></div>
+          <div class="cop-input">
+            <textarea id="cop-text" placeholder="e.g. draft a firm but polite reply asking for a statement of all open invoices"></textarea>
+            <button class="btn btn-primary" id="cop-send">Ask</button>
+          </div>
+        </div>
+
+        <div class="ec-panel">
+          <h3>✉️ Reply — you review, you send</h3>
+          <div class="cmp">
+            <div class="money-banner" id="money-banner" style="display:none">💰 Money item — refund/return/payment decisions are yours. Nothing here moves money; email only.</div>
+            <div class="rowx"><label>From</label><select id="c-from"><option value="">Connect Gmail to load send-as aliases…</option></select></div>
+            <div class="rowx"><label>To</label><input id="c-to" type="text" placeholder="recipient"></div>
+            <div class="rowx"><label>Subject</label><input id="c-subj" type="text"></div>
+            <div class="draft-status" id="draft-status" style="display:none"></div>
+            <textarea id="c-body" placeholder="Write here, or click 'Use as draft' on a Claude suggestion…"></textarea>
+            <div class="actions">
+              <button class="btn btn-secondary" id="btn-usedraft">⬅ Use Claude's last draft</button>
+              <button class="btn btn-secondary" id="btn-draftnow" title="Ask Claude for a fresh suggested reply">&#9998; Draft now</button>
+              <button class="btn btn-ghost" id="btn-savedraft">Save draft</button>
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn-send" id="btn-send" disabled>Review &amp; Send</button>
+            </div>
+            <label class="opt-out"><input type="checkbox" id="c-noauto"> Don't auto-draft this one (platform case / handle elsewhere)</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- send confirm -->
+<div class="modal-bg" id="send-modal">
+  <div class="modal">
+    <h4>Confirm send — this is the real thing</h4>
+    <div class="kv"><b>From</b> <span id="m-from"></span></div>
+    <div class="kv"><b>To</b> <span id="m-to"></span></div>
+    <div class="kv"><b>Subject</b> <span id="m-subj"></span></div>
+    <div class="preview" id="m-body"></div>
+    <div id="m-money" class="money-banner" style="display:none">💰 This thread involves money. Confirm you've made the refund/payment decision yourself.</div>
+    <div class="btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('send-modal').classList.remove('open')">Cancel</button>
+      <button class="btn-send" id="m-confirm">Send now</button>
+    </div>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="modal-bg" id="set-modal">
+  <div class="modal">
+    <h4 style="color:var(--green)">Email Center settings</h4>
+    <div class="kv" style="margin-bottom:8px">Copilot access code (must match the <code>COPILOT_ACCESS_CODE</code> secret in Supabase):</div>
+    <input id="set-code" type="password" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:5px" placeholder="access code">
+    <div class="kv" style="margin:12px 0 4px">Google OAuth Client ID (from Google Cloud console):</div>
+    <input id="set-gcid" type="text" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:5px" placeholder="xxxxx.apps.googleusercontent.com">
+
+    <label class="opt-out" style="margin:14px 0 0;font-size:12.5px;color:var(--text)">
+      <input type="checkbox" id="set-autodraft" checked>
+      Let Claude pre-draft a suggested reply when I open an actionable email
+    </label>
+    <div style="font-size:11px;color:var(--text-muted);margin:3px 0 0 20px">
+      Drafts only — nothing is ever sent without the confirm modal. Money items are drafted as
+      &ldquo;needs your decision&rdquo; and never commit to an amount.
+    </div>
+
+    <div class="kv" style="margin:16px 0 6px">
+      <b style="width:auto;color:var(--text)">Priority contacts</b> &mdash; always surfaced as
+      actionable, even if the noise filter would drop them:
+    </div>
+    <div id="vip-list" class="vip-list"></div>
+    <div class="vip-add">
+      <select id="vip-kind">
+        <option value="sender">Sender</option>
+        <option value="domain">Domain</option>
+        <option value="keyword">Keyword</option>
+      </select>
+      <input id="vip-value" placeholder="email, domain, or phrase">
+      <input id="vip-label" placeholder="who / why (optional)">
+      <select id="vip-cat"><option>URGENT</option><option>ACTION</option></select>
+      <button class="btn btn-secondary" id="vip-add">Add</button>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('set-modal').classList.remove('open')">Close</button>
+      <button class="btn btn-primary" id="set-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="assets/portal.js"></script>
+<script src="assets/email.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<title>Email Center — TLAPS Operations</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../images/favicon.ico">
+<link rel="stylesheet" href="assets/portal.css">
+<style>
+  /* ===== Email Center layout ===== */
+  .ec-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .ec-toolbar .spacer { flex:1; }
+  .ec-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:16px;
+    border:1px solid var(--border); background:#fff; font-size:12px; cursor:pointer; user-select:none; }
+  .ec-chip.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .ec-grid { display:grid; grid-template-columns: 340px minmax(380px,1fr) 400px; gap:14px; align-items:start; }
+  @media (max-width:1400px){ .ec-grid { grid-template-columns: 300px 1fr; } .ec-right { grid-column:1/-1; } }
+
+  .ec-panel { background:var(--bg-card,#fff); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .ec-panel h3 { margin:0; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--green); border-bottom:1px solid var(--border); background:#fafcf9; display:flex; align-items:center; gap:8px;}
+  .ec-panel h3 .mini { margin-left:auto; font-size:11px; color:var(--text-muted); text-transform:none; letter-spacing:0; }
+
+  /* queue */
+  .ec-queue { max-height: calc(100vh - 240px); overflow-y:auto; }
+  .qi { padding:10px 12px; border-bottom:1px solid #f0f2ef; cursor:pointer; }
+  .qi:hover { background:#f6faf7; }
+  .qi.sel { background:#eaf5ee; border-left:3px solid var(--green); padding-left:9px; }
+  .qi .top { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); }
+  .qi .subj { font-size:13px; font-weight:600; color:var(--text); margin:2px 0; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .qi .snip { font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cat { font-weight:700; font-size:10px; padding:1px 7px; border-radius:9px; }
+  .cat.URGENT { background:#fee2e2; color:#b91c1c; } .cat.ACTION { background:#fef3c7; color:#92400e; }
+  .st { font-size:10px; padding:1px 7px; border-radius:9px; background:#eef2f7; color:#475569; }
+  .st.sent{background:#dcfce7;color:#15803d} .st.drafted{background:#e0f2fe;color:#0369a1}
+  .acct-tag { font-size:10px; color:#3b6e57; background:#eaf5ee; border-radius:9px; padding:1px 7px; }
+  .money { font-size:10px; background:#fde68a; color:#78350f; border-radius:9px; padding:1px 7px; font-weight:700; }
+  .draft-tag { font-size:10px; background:#e0f2fe; color:#0369a1; border-radius:9px; padding:1px 7px; font-weight:700; }
+  .vip-tag { font-size:11px; color:#b45309; font-weight:700; }
+
+  /* thread */
+  .ec-thread { max-height: calc(100vh - 240px); overflow-y:auto; padding:12px 14px; }
+  .msg { border:1px solid var(--border); border-radius:6px; margin-bottom:10px; }
+  .msg .mh { padding:8px 12px; font-size:12px; background:#fafcf9; border-bottom:1px solid var(--border);
+    display:flex; gap:10px; flex-wrap:wrap; cursor:pointer; }
+  .msg .mh b { color:var(--text); } .msg .mh .dt { margin-left:auto; color:var(--text-muted); }
+  .msg .mb { padding:12px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;
+    max-height:420px; overflow-y:auto; color:#222; }
+  .msg.collapsed .mb { display:none; }
+  .ec-empty { padding:60px 20px; text-align:center; color:var(--text-muted); font-size:13px; }
+  .deadline-banner { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; border-radius:6px;
+    padding:8px 12px; font-size:12.5px; font-weight:600; margin-bottom:10px; }
+
+  /* right column: copilot + composer */
+  .ec-right { display:flex; flex-direction:column; gap:14px; }
+  .cop-log { height:260px; overflow-y:auto; padding:10px 12px; background:#fbfdfb; }
+  .cop-m { margin-bottom:10px; font-size:12.5px; line-height:1.5; }
+  .cop-m .who { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted); }
+  .cop-m.user .bub { background:#eaf5ee; border-radius:8px 8px 2px 8px; padding:8px 10px; }
+  .cop-m.claude .bub { background:#fff; border:1px solid var(--border); border-radius:8px 8px 8px 2px; padding:8px 10px; white-space:pre-wrap; }
+  .cop-input { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--border); }
+  .cop-input textarea { flex:1; resize:none; height:54px; padding:8px 10px; border:1px solid var(--border);
+    border-radius:6px; font:inherit; font-size:13px; }
+  .cop-quick { display:flex; gap:6px; flex-wrap:wrap; padding:8px 12px 0; }
+  .cop-quick button { font-size:11px; padding:4px 10px; border-radius:12px; border:1px solid var(--border);
+    background:#fff; cursor:pointer; } .cop-quick button:hover { background:#eaf5ee; }
+
+  .cmp { padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .cmp .rowx { display:flex; gap:8px; align-items:center; }
+  .cmp label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted); width:52px; flex-shrink:0; }
+  .cmp select, .cmp input { flex:1; padding:7px 9px; border:1px solid var(--border); border-radius:5px; font:inherit; font-size:13px; }
+  .cmp textarea { width:100%; min-height:170px; padding:10px; border:1px solid var(--border); border-radius:6px;
+    font:inherit; font-size:13px; line-height:1.5; resize:vertical; }
+  .cmp .actions { display:flex; gap:8px; align-items:center; }
+  .btn-send { background:#b91c1c; color:#fff; border:none; padding:9px 18px; border-radius:6px; font-weight:700;
+    cursor:pointer; font-size:13px; } .btn-send:hover { background:#991b1b; }
+  .btn-send:disabled { background:#d1d5db; cursor:not-allowed; }
+  .money-banner { background:#fef3c7; border:1px solid #fcd34d; color:#78350f; font-size:12px;
+    border-radius:6px; padding:7px 10px; font-weight:600; }
+  .draft-status { font-size:11.5px; border-radius:6px; padding:6px 9px; }
+  .draft-status.ok { background:#e0f2fe; border:1px solid #7dd3fc; color:#075985; font-weight:600; }
+  .draft-status.busy { background:#f1f5f9; border:1px solid var(--border); color:#475569; }
+  .draft-status.muted { background:#f8fafc; border:1px solid var(--border); color:#64748b; }
+  .opt-out { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .opt-out input { width:auto; flex:none; }
+
+  /* priority contacts editor (settings modal) */
+  .vip-list { max-height:190px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; }
+  .vip-empty { padding:14px; font-size:12px; color:var(--text-muted); text-align:center; }
+  .vip-row { display:flex; align-items:center; gap:7px; padding:5px 8px; border-bottom:1px solid #f0f2ef; font-size:12px; }
+  .vip-row:last-child { border-bottom:none; }
+  .vip-kind { font-size:10px; text-transform:uppercase; color:#3b6e57; background:#eaf5ee;
+    border-radius:9px; padding:1px 7px; flex-shrink:0; }
+  .vip-val { font-weight:600; word-break:break-all; }
+  .vip-lab { color:var(--text-muted); font-size:11px; margin-left:auto; text-align:right;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:190px; }
+  .vip-del { background:none; border:none; color:#b91c1c; font-size:17px; line-height:1;
+    cursor:pointer; padding:0 3px; flex-shrink:0; }
+  .vip-add { display:flex; gap:6px; margin-top:8px; }
+  .vip-add select, .vip-add input { padding:6px 8px; border:1px solid var(--border);
+    border-radius:5px; font:inherit; font-size:12px; min-width:0; }
+  .vip-add #vip-value { flex:2; } .vip-add #vip-label { flex:2; }
+
+  /* confirm modal */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+  .modal-bg.open { display:flex; }
+  .modal { background:#fff; border-radius:10px; max-width:560px; width:92%; padding:22px;
+    box-shadow:0 24px 60px rgba(0,0,0,.3); max-height:88vh; overflow-y:auto; }
+  .modal h4 { margin:0 0 12px; color:#b91c1c; font-size:16px; }
+  .modal .kv { font-size:13px; margin:4px 0; } .modal .kv b { display:inline-block; width:70px; color:var(--text-muted); }
+  .modal .preview { background:#f8faf8; border:1px solid var(--border); border-radius:6px; padding:10px;
+    font-size:12.5px; max-height:180px; overflow-y:auto; white-space:pre-wrap; margin:10px 0; }
+  .modal .btns { display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }
+
+  .gbtn { background:#1a73e8; color:#fff; border:none; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; }
+  .gbtn.ok { background:#15803d; }
+  .setup-note { background:#fff7ed; border:1px solid #fdba74; color:#7c2d12; font-size:12.5px; border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+  .setup-note code { background:#fff; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="portal-layout">
+  <nav class="sidebar"></nav>
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Email Center</h1>
+        <div class="subtitle">All 5 accounts &middot; one hub &middot; drafts only until <b>you</b> hit send</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" id="btn-settings">Settings</button>
+        <button class="gbtn" id="btn-gmail">Connect Gmail</button>
+        <button class="btn btn-secondary" id="btn-sync" disabled>Sync inbox</button>
+        <button class="btn btn-secondary" id="btn-draftall" title="Pre-draft replies for every open urgent item. Drafts only — nothing sends.">&#9998; Draft all urgent</button>
+      </div>
+    </div>
+
+    <div id="setup-note" class="setup-note" style="display:none"></div>
+
+    <div class="ec-toolbar" id="filters">
+      <span class="ec-chip on" data-f="cat" data-v="URGENT">🔴 Urgent</span>
+      <span class="ec-chip on" data-f="cat" data-v="ACTION">🟡 Action</span>
+      <span class="ec-chip on" data-f="st" data-v="open">Open</span>
+      <span class="ec-chip" data-f="st" data-v="done">Done/Sent</span>
+      <span class="spacer"></span>
       <select id="f-acct" class="ec-chip" style="padding:5px 10px">
         <option value="">All accounts</option>
         <option>acct/rickytsuiusa</option>
