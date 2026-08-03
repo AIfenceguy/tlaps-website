@@ -36,6 +36,7 @@ renderSidebar('email');
 
 /* ================= STATE ================= */
 let gToken = null, gTokenExp = 0, tokenClient = null;
+let tokenWait = null, tokenResolve = null, renewTimer = null;
 let queue = [];            // rows from supabase email_queue
 let sel = null;            // selected queue row
 let threadCache = {};      // threadId -> parsed messages
@@ -171,8 +172,69 @@ function isPlatformCase(row) {
          RX_CASE_LANG.test((row.subject || '') + ' ' + (row.snippet || ''));
 }
 
-/* ================= GOOGLE AUTH ================= */
+/* ================= GOOGLE AUTH =================
+ * Google access tokens only live about an hour, so the old code quietly went
+ * cold whenever the page sat idle and the next click showed "Connect Gmail"
+ * again. Three things keep the session alive now:
+ *   1. the token is renewed on a timer five minutes before it expires,
+ *   2. coming back to the tab re-checks it, and any 401 renews and retries once,
+ *   3. renewal is silent — we remember the hub address and pass it as a hint, so
+ *      Google reissues the token without the account chooser.
+ * Renewal never asks for consent; if Google genuinely needs the user (signed out
+ * of Google entirely, or consent revoked) the button comes back and says so. */
 function gmailReady() { return gToken && Date.now() < gTokenExp - 30000; }
+
+/* The hub address, remembered so silent renewal can skip the account chooser.
+ * This is just an email address — no token or password is ever stored here. */
+function authHint() { try { return localStorage.getItem('tlaps_ec_hint') || ''; } catch (e) { return ''; } }
+function setAuthHint(v) { try { if (v) localStorage.setItem('tlaps_ec_hint', v); } catch (e) {} }
+
+function scheduleRenew() {
+  clearTimeout(renewTimer);
+  const lead = gTokenExp - Date.now() - 5 * 60 * 1000;
+  renewTimer = setTimeout(function () { requestToken(true); }, Math.max(lead, 15000));
+}
+
+function storeToken(tok, exp) {
+  gToken = tok; gTokenExp = exp;
+  try { sessionStorage.setItem('tlaps_ec_tok', JSON.stringify({ t: tok, e: exp })); } catch (e) {}
+  scheduleRenew();
+}
+
+function markDisconnected(msg) {
+  clearTimeout(renewTimer);
+  gToken = null; gTokenExp = 0;
+  try { sessionStorage.removeItem('tlaps_ec_tok'); } catch (e) {}
+  const b = $('btn-gmail');
+  if (b) { b.textContent = 'Connect Gmail'; b.classList.remove('ok'); }
+  const sy = $('btn-sync'); if (sy) sy.disabled = true;
+  if (msg) toast(msg, 'warning');
+}
+
+function finishToken(ok) {
+  const r = tokenResolve; tokenResolve = null; tokenWait = null;
+  if (r) r(ok);
+}
+
+/* One in-flight request at a time; every caller waits on the same promise so a
+ * timer renewal and a click can never race into two consent popups. */
+function requestToken(silent) {
+  if (!tokenClient) { initGsi(); if (!tokenClient) return Promise.resolve(false); }
+  if (tokenWait) return tokenWait;
+  tokenWait = new Promise(function (res) { tokenResolve = res; });
+  const req = { prompt: silent ? '' : 'consent' };
+  const h = authHint();
+  if (h) { req.hint = h; req.login_hint = h; }
+  try { tokenClient.requestAccessToken(req); } catch (e) { finishToken(false); }
+  return tokenWait;
+}
+
+/* Make sure we hold a usable token, renewing silently if we don't. Never pops a
+ * consent screen on its own — that only happens when the button is clicked. */
+async function ensureToken() {
+  if (gmailReady()) return true;
+  return await requestToken(true);
+}
 
 function initGsi() {
   if (!EC.GOOGLE_CLIENT_ID) {
@@ -181,44 +243,80 @@ function initGsi() {
     return;
   }
   if (!(window.google && google.accounts && google.accounts.oauth2)) { setTimeout(initGsi, 400); return; }
+  if (tokenClient) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: EC.GOOGLE_CLIENT_ID,
     scope: EC.SCOPES,
-    callback: (resp) => {
-      if (resp.error) { toast('Google auth failed: ' + resp.error, 'error'); return; }
-      gToken = resp.access_token;
-      gTokenExp = Date.now() + (resp.expires_in || 3600) * 1000;
-      sessionStorage.setItem('tlaps_ec_tok', JSON.stringify({ t: gToken, e: gTokenExp }));
-      onGmailConnected();
-    }
+    callback: function (resp) {
+      if (resp && resp.access_token) {
+        const wasCold = !$('btn-gmail').classList.contains('ok');
+        storeToken(resp.access_token, Date.now() + (resp.expires_in || 3600) * 1000);
+        finishToken(true);
+        onGmailConnected(wasCold);
+      } else {
+        finishToken(false);
+        markDisconnected(resp && resp.error ? 'Gmail needs reconnecting: ' + resp.error : null);
+      }
+    },
+    error_callback: function () { finishToken(false); markDisconnected(); }
   });
-  // restore session token if still valid
+
+  // A live token from this tab beats everything else — reuse it and keep it warm.
+  let restored = false;
   try {
     const s = JSON.parse(sessionStorage.getItem('tlaps_ec_tok') || 'null');
-    if (s && Date.now() < s.e - 60000) { gToken = s.t; gTokenExp = s.e; onGmailConnected(); }
+    if (s && Date.now() < s.e - 60000) { storeToken(s.t, s.e); onGmailConnected(false); restored = true; }
   } catch (e) {}
+  // Otherwise, if we know which mailbox this is, reconnect silently on load so a
+  // fresh tab comes up already connected instead of waiting for a click.
+  if (!restored && authHint()) requestToken(true);
+
+  // Coming back to an idle tab is the exact moment the old token had gone stale.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && authHint() && !gmailReady()) requestToken(true);
+  });
 }
 
-async function onGmailConnected() {
+async function onGmailConnected(announce) {
   $('btn-gmail').textContent = 'Gmail ✓';
   $('btn-gmail').classList.add('ok');
   $('btn-sync').disabled = false;
-  toast('Gmail connected (hub)', 'success');
-  await loadSendAs();
+  if (announce !== false) toast('Gmail connected (hub)', 'success');
+  // Only on a real connect — a silent hourly renewal shouldn't refetch the alias
+  // list, and it must never throw and break the renewal it was called from.
+  if (!sendAsList.length) { try { await loadSendAs(); } catch (e) { console.warn('sendAs', e); } }
 }
 
-function connectGmail() {
+/* The button. Try silent first so a still-valid Google session reconnects with
+ * no chooser at all; only fall back to the full consent screen if that fails. */
+async function connectGmail() {
   if (!tokenClient) { initGsi(); if (!tokenClient) return; }
-  tokenClient.requestAccessToken({ prompt: gToken ? '' : 'consent' });
+  const b = $('btn-gmail');
+  const label = b.textContent;
+  b.textContent = 'Connecting…';
+  let ok = await requestToken(true);
+  if (!ok) ok = await requestToken(false);
+  if (!ok && b.textContent === 'Connecting…') b.textContent = label;
 }
 
 /* ================= GMAIL REST ================= */
-async function gm(path, opts) {
-  if (!gmailReady()) { connectGmail(); throw new Error('Gmail token expired — reconnect and retry'); }
+async function gm(path, opts, retried) {
+  if (!gmailReady() && !(await ensureToken())) {
+    markDisconnected();
+    throw new Error('Gmail needs reconnecting — click Connect Gmail');
+  }
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/' + path, Object.assign({
     headers: { 'Authorization': 'Bearer ' + gToken, 'Content-Type': 'application/json' }
   }, opts || {}));
-  if (res.status === 401) { gToken = null; connectGmail(); throw new Error('Gmail session expired'); }
+  // A 401 mid-flight means the token died early; renew once, quietly, and retry
+  // the same call so the action the user asked for still goes through.
+  if (res.status === 401 && !retried) {
+    gToken = null; gTokenExp = 0;
+    if (await requestToken(true)) return gm(path, opts, true);
+    markDisconnected();
+    throw new Error('Gmail session expired — click Connect Gmail');
+  }
+  if (res.status === 401) { markDisconnected(); throw new Error('Gmail session expired — click Connect Gmail'); }
   if (!res.ok) throw new Error('Gmail API ' + path.split('?')[0] + ' -> ' + res.status + ' ' + (await res.text()).slice(0, 200));
   return res.json();
 }
@@ -227,6 +325,8 @@ async function loadSendAs() {
   try {
     const data = await gm('settings/sendAs');
     sendAsList = (data.sendAs || []).filter(a => a.verificationStatus === 'accepted' || a.isPrimary);
+    const prim = (data.sendAs || []).find(a => a.isPrimary);
+    if (prim) setAuthHint(prim.sendAsEmail);   // lets the next renewal skip the account chooser
     const sel1 = $('c-from');
     sel1.innerHTML = sendAsList.map(a =>
       `<option value="${escapeHtml(a.sendAsEmail)}">${escapeHtml(a.displayName || '')} &lt;${escapeHtml(a.sendAsEmail)}&gt;${a.isPrimary?' (hub)':''}</option>`).join('');
