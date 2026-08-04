@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Operations — JL Concepts</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f4f5f7;color:#0b0b0b;line-height:1.4}
+.wrap{max-width:1600px;margin:0 auto;padding:16px 20px 60px}
+h1{font-size:20px;margin:6px 0 2px}.sub{color:#52514e;font-size:12px;margin-bottom:10px}
+h3{font-size:14px;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.5px;color:#3d4b5c}
+.card{background:#fff;border:1px solid #d8dbe0;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.kpi{background:#fafbfc;border:1px solid #e3e6ea;border-radius:8px;padding:8px 10px}
+.kpi .k{font-size:10.5px;color:#6b7280;text-transform:uppercase;letter-spacing:.3px}
+.kpi .v{font-size:18px;font-weight:650;margin-top:1px}
+.flt{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}
+.flt>div>label{display:block;font-size:10.5px;color:#6b7280;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.flt input,.flt select{width:100%;padding:5px 7px;border:1px solid #c9ced6;border-radius:6px;font-size:12.5px;box-sizing:border-box}
+/* date range needs room for two date pickers — give it two grid columns */
+.flt .wide{grid-column:span 2}
+.dr{display:flex;gap:6px;align-items:center}
+.dr input{flex:1 1 0;min-width:0}          /* min-width:0 stops the inputs overflowing */
+.dr span{flex:0 0 auto;color:#6b7280}
+/* checkbox panel: these labels must be inline chips, NOT the uppercase block labels */
+#nla{display:flex;flex-wrap:wrap;gap:6px 16px;background:#fafbfc;border:1px solid #c9ced6;
+     border-radius:6px;padding:8px 10px}
+#nla label{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12px;
+     text-transform:none;letter-spacing:0;color:#0b0b0b;white-space:nowrap;cursor:pointer}
+#nla input[type=checkbox]{width:auto;margin:0;flex:0 0 auto}
+.qb{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.qb button{padding:3px 9px;border:1px solid #c9ced6;border-radius:12px;background:#fff;cursor:pointer;font-size:11.5px}
+.qb button.on{background:#3d4b5c;color:#fff;border-color:#3d4b5c}
+table{border-collapse:collapse;font-size:12px;width:100%;background:#fff}
+th{background:#3d4b5c;color:#fff;padding:6px 7px;text-align:left;cursor:pointer;white-space:nowrap;position:sticky;top:0;z-index:2}
+td{padding:4px 7px;border-bottom:1px solid #eceef1;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:hover td{background:#eef4fb}tbody tr.sel td{background:#dbeafe}
+tbody tr{cursor:pointer}
+.scroll{max-height:52vh;overflow:auto;border:1px solid #d8dbe0;border-radius:8px}
+.pos{color:#0a8a0a;font-weight:600}.neg{color:#c62828;font-weight:600}
+.pag{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:12px}
+.pag button{padding:3px 10px;border:1px solid #c9ced6;border-radius:6px;background:#fff;cursor:pointer}
+/* button.xls, not .xls — ".pag button" above is more specific and would otherwise
+   paint the download button white on white */
+button.xls{padding:6px 12px;border:1px solid #1e7145;border-radius:7px;background:#1e7145;
+ color:#fff;cursor:pointer;font-size:12.5px;font-weight:600}
+button.xls:hover{background:#175937;border-color:#175937}
+.note{color:#52514e;font-size:11.5px;margin:5px 0}
+.chwrap{overflow-x:auto}
+.chtbl th:first-child,.chtbl td:first-child{position:sticky;left:0;background:#fff;font-weight:600;z-index:1}
+.chtbl th:first-child{background:#3d4b5c;z-index:3}
+.chtbl tr.tot td{border-top:2px solid #3d4b5c;border-bottom:2px solid #3d4b5c;background:#f7f9fb}
+.chtbl tr.tot td:first-child{background:#f7f9fb}
+.defs td{white-space:normal}.defs td:first-child{font-weight:650;white-space:nowrap}
+
+#gate{position:fixed;inset:0;background:#f4f5f7;display:flex;align-items:center;
+ justify-content:center;z-index:9999}
+#gate .box{background:#fff;border:1px solid #d8dbe0;border-radius:12px;padding:26px 28px;
+ width:340px;box-shadow:0 8px 30px rgba(0,0,0,.07)}
+#gate h2{margin:0 0 3px;font-size:17px}
+#gate p.s{margin:0 0 16px;color:#6b7280;font-size:12px}
+#gate label{display:block;font-size:10.5px;color:#6b7280;text-transform:uppercase;
+ letter-spacing:.3px;margin:10px 0 3px}
+#gate input{width:100%;padding:8px 9px;border:1px solid #c9ced6;border-radius:6px;
+ font-size:13px;box-sizing:border-box}
+#gate button{width:100%;margin-top:16px;padding:9px;border:0;border-radius:7px;
+ background:#3d4b5c;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+#gate button:disabled{opacity:.55;cursor:default}
+#gate .err{color:#c62828;font-size:12px;margin-top:10px;min-height:16px;line-height:1.35}
+#signout{position:fixed;top:10px;right:14px;z-index:50;font-size:11.5px;color:#52514e;
+ background:#fff;border:1px solid #d8dbe0;border-radius:6px;padding:4px 9px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="gate"><div class="box">
+  <h2>Sales Operations</h2>
+  <p class="s">JL Concepts &middot; internal &mdash; sign in to continue</p>
+  <form id="lf" autocomplete="on">
+   <label for="em">Email</label>
+   <input id="em" type="email" autocomplete="username" required>
+   <label for="pw">Password</label>
+   <input id="pw" type="password" autocomplete="current-password" required>
+   <button id="go" type="submit">Sign in</button>
+   <div class="err" id="er"></div>
+  </form>
+</div></div>
+<button id="signout" hidden>Sign out</button>
+<div class="wrap">
+<h1>Sales Operations</h1>
+<div class="sub" id="sub"></div>
+
+<!-- ============ SUMMARY BOX ============ -->
+<h3>Summary box</h3>
+<div class="card">
+ <div class="kpis" id="kpis"></div>
+ <div class="flt">
+  <div class="wide"><label>Date range</label><div class="dr">
+    <input type="date" id="d1"><span>→</span><input type="date" id="d2"></div>
+    <div class="qb" id="quick"></div></div>
+  <div><label>Listing type</label><select id="fty">
+    <option value="">all</option><option value="single">single only</option><option value="combo">combo only</option></select></div>
+  <div><label>Category</label><select id="fsc"><option value="">all categories</option></select></div>
+  <div><label>Marketplace / channel</label><select id="fch"><option value="">all channels</option></select></div>
+  <div><label>ERP note</label>
+    <input type="text" id="fnt" list="ntlist" placeholder="e.g. disc, clear, stop"></div>
+  <div><label>SKU contains</label><input type="text" id="q" placeholder="e.g. TC- or F150,RAM"></div>
+  <div><label>SKU does NOT contain</label><input type="text" id="qx" placeholder="e.g. -D1,-D2,-D3"></div>
+  <div><label>Fees: 12% + AD <b id="adv">5%</b></label>
+    <input type="range" id="ad" min="0" max="15" step="0.5" value="5"></div>
+ </div>
+</div>
+
+<!-- ============ SALES RECORD ============ -->
+<h3>Sales record <span style="text-transform:none;font-weight:400;color:#6b7280" id="cnt"></span></h3>
+<div class="pag"><button id="pb">◀</button><span id="pi"></span><button id="pn">▶</button>
+ <select id="ps"><option>100</option><option selected>250</option><option>1000</option><option>5000</option></select> rows
+ <button class="xls" id="x">Download SKU list (Excel)</button>
+ <button class="xls" id="xc">Download by seller account (Excel)</button>
+ <span class="note">click any row to see its channel breakdown below ·
+  <a href="#logic" style="color:#3d4b5c">how these numbers are worked out ↓</a></span></div>
+<div class="scroll" id="tbl"></div>
+
+<!-- ============ CHANNEL RECORD ============ -->
+<h3>Channel record</h3>
+<div class="card chwrap" id="chbox"><p class="note">Click a SKU above to see how it sells on each account.</p></div>
+
+<!-- ============ IN STOCK BUT NOT LIVE ============ -->
+<h3>⚠ In stock but NOT LIVE — new items never listed &amp; broken listings</h3>
+<div class="card">
+ <p class="note" id="nlsum"></p>
+ <div class="flt" style="margin-bottom:8px">
+  <div style="grid-column:1/-1"><label>Not live on</label>
+   <div id="nla">
+    <label><input type="checkbox" id="nlnone" checked> <b>ANY marketplace (live nowhere)</b></label>
+   </div></div>
+  <div><label>Listing type</label><select id="nlty">
+    <option value="">all</option><option value="single">single only</option><option value="combo">combo only</option></select></div>
+  <div><label>Item age</label><select id="nlt">
+    <option value="">new + old items</option><option value="new">NEW — never sold</option><option value="was">was selling before</option></select></div>
+  <div><label>Category</label><select id="nlsc"><option value="">all categories</option></select></div>
+  <div><label>SKU contains</label><input type="text" id="nlq" placeholder="e.g. TC- or F150,RAM"></div>
+  <div><label>SKU does NOT contain</label><input type="text" id="nlqx" placeholder="e.g. -D1,-D2,-D3"></div>
+  <div><label>ERP note</label>
+    <input type="text" id="nlnt" list="ntlist" placeholder="e.g. disc, clear, stop"></div>
+  <div class="wide"><label>Stock depth</label><select id="nlsp">
+    <option value="ok" selected>enough to list — free stock ≥ 4-day safety point</option>
+    <option value="">show everything, including too-thin-to-list</option>
+    <option value="thin">ONLY the thin ones (below safety point)</option></select></div>
+ </div>
+ <button class="xls" id="nlx">Download what's shown (opens in Excel)</button>
+ <span class="note">top 300 by stock value shown — the download has everything filtered</span>
+ <div class="scroll" style="max-height:44vh;margin-top:8px" id="nltbl"></div>
+</div>
+
+<h3 id="logic">Column meanings — how every number on this page is worked out</h3>
+<div class="card"><table class="defs" id="defs"></table></div>
+
+
+</div>
+<script type="text/plain" id="portalcode">
+const R=window.__R;
+const NL=window.__NL;
+const META=window.__META;
+const $=s=>document.querySelector(s);
+const money=v=>(v==null||isNaN(v))?"—":(v<0?"-$":"$")+Math.abs(Math.round(v)).toLocaleString();
+const money2=v=>(v==null||isNaN(v))?"—":"$"+Number(v).toFixed(2);
+const fmt=(v,d)=>v==null?"":Number(v).toLocaleString(undefined,{maximumFractionDigits:d??0});
+const pct=v=>(v==null||isNaN(v))?"—":v.toFixed(1)+"%";
+let AD=0.05, sortK="rev", sortD=-1, page=0, selected=null;
+// seller accounts that pay the 12% marketplace fee + ad spend. Wholesale, dropship,
+// the website and the I3 intercompany orders do not.
+const MKT=new Set(META.mkt||[]);
+
+// ---- date range -> which month buckets (0 = current month, 23 = 24 months ago) ----
+const TODAY=new Date(META.today+"T00:00:00");
+function monthsAgo(dt){return (TODAY.getFullYear()-dt.getFullYear())*12+(TODAY.getMonth()-dt.getMonth());}
+function rangeMonths(){
+ const a=new Date($("#d1").value+"T00:00:00"), b=new Date($("#d2").value+"T00:00:00");
+ if(isNaN(a)||isNaN(b))return null;
+ const lo=Math.max(0,monthsAgo(b)), hi=Math.min(META.months-1,monthsAgo(a));
+ const set=[]; for(let i=lo;i<=hi;i++)set.push(String(i));
+ return set;
+}
+function setRange(monthsBack){
+ const b=new Date(TODAY), a=new Date(TODAY);
+ a.setMonth(a.getMonth()-monthsBack+1); a.setDate(1);
+ $("#d1").value=a.toISOString().slice(0,10); $("#d2").value=b.toISOString().slice(0,10);
+}
+[["Last 24 months",24],["Last 12 months",12],["Last 6 months",6],["Last 3 months",3],["This month",1]]
+ .forEach(([lab,n],i)=>{const b=document.createElement("button");b.textContent=lab;b.dataset.n=n;
+  if(n===24)b.className="on";
+  b.onclick=()=>{document.querySelectorAll("#quick button").forEach(x=>x.className="");
+   b.className="on";setRange(n);recalc();};$("#quick").appendChild(b);});
+setRange(24);
+
+// ---- totals for one SKU over the selected months ----
+function agg(r,ms,chan){
+ let q=0,rev=0,mrev=0,ship=0,rv=0,rq=0,rc=0;
+ if(chan){                                   // ONE seller account
+  // qty, sales, shipping and refunds are all held per channel, so this is the
+  // account's real numbers — not a share-out of the SKU total.
+  const cm=r.cm[chan]||{};
+  ms.forEach(m=>{const e=cm[m]; if(e){q+=e[0];rev+=e[1];ship+=e[2]||0;rv+=e[3]||0;rq+=e[4]||0;
+   // return COST is only known per SKU per month, so give this account the slice
+   // of that month's return cost that matches its slice of that month's refunds
+   const t=r.m[m]; if(t&&t[4]>0)rc+=(t[6]||0)*(e[3]||0)/t[4];}});
+  mrev=MKT.has(chan)?rev:0;                  // 12% + ad only on marketplace accounts
+ }else{
+  ms.forEach(m=>{const e=r.m[m]; if(e){q+=e[0];rev+=e[1];mrev+=e[2];ship+=e[3];
+   rv+=e[4];rq+=e[5];rc+=(e[6]||0);}});
+ }
+ const fee=mrev*0.12, ad=mrev*AD, cogs=(r.C!=null)?r.C*q:null;
+ const profit=(cogs==null)?null:rev-fee-ad-ship-cogs;   // before returns
+ // NET subtracts RETURN COST (labels + unsellable product + no-item refunds) —
+ // the same model as JOE_PORTAL v1, not the gross refund amount.
+ return {q:q,rev:rev,mrev:mrev,ship:ship,fee:fee,ad:ad,cogs:cogs,
+         profit:profit, net:(profit==null?null:profit-rc),
+         rv:rv,rq:rq,rc:rc, mgn:(profit!=null&&rev>0)?((profit-rc)/rev*100):null,
+         rrate:q>0?rq/q*100:null};
+}
+function terms(s){return String(s||"").toUpperCase().split(",").map(x=>x.trim()).filter(Boolean);}
+// ERP note search. Notes is a slash-delimited tag list ("discontinue/check inv"),
+// so typing a PREFIX of any tag or of any word inside it matches live: "disc" finds
+// every discontinue variant, "left" finds "3 left only". Comma-separated = any of.
+// A leading "-" excludes, and "none" on its own finds items with no note at all.
+function noteMatch(r,txt){
+ const q=String(txt||"").toLowerCase().split(",").map(x=>x.trim()).filter(Boolean);
+ if(!q.length)return true;
+ const tags=Array.isArray(r.ng)?r.ng:String(r.ng||"").split("|").filter(Boolean);
+ const words=String(r.nt||"").toLowerCase().split(/[^a-z0-9.]+/).filter(Boolean);
+ const hit=p=>tags.some(t=>t.startsWith(p))||words.some(w=>w.startsWith(p));
+ const inc=q.filter(p=>!p.startsWith("-")), exc=q.filter(p=>p.startsWith("-")).map(p=>p.slice(1));
+ if(exc.some(p=>p&&hit(p)))return false;
+ if(!inc.length)return true;
+ return inc.some(p=>p==="none"?!tags.length:hit(p));
+}
+function rows(){
+ const ms=rangeMonths()||[], ty=$("#fty").value, sc=$("#fsc").value, ch=$("#fch").value;
+ const nt=$("#fnt").value;
+ const qi=terms($("#q").value), qe=terms($("#qx").value);
+ const out=[];
+ R.forEach(r=>{
+  const u=r.s.toUpperCase();
+  if(ty&&r.t!==ty)return;
+  if(sc&&r.sc!==sc)return;
+  if(nt&&!noteMatch(r,nt))return;
+  if(qi.length&&!qi.some(x=>u.includes(x)))return;
+  if(qe.length&&qe.some(x=>u.includes(x)))return;
+  if(ch&&!r.cm[ch])return;
+  const a=agg(r,ms,ch);
+  if(a.q<=0&&a.rev<=0)return;
+  out.push(Object.assign({r:r},a));
+ });
+ return out;
+}
+
+const COLS=[
+ {k:"s",   h:"SKU",              f:x=>x.r.s},
+ {k:"sc",  h:"Sub category",     f:x=>x.r.sc||""},
+ {k:"t",   h:"Listing type",     f:x=>x.r.t||""},
+ {k:"nt",  h:"ERP note",         f:x=>{const n=x.r.nt||"";if(!n)return"";
+   const bad=/discontinue|stop ad|no ad/i.test(n);
+   return '<span class="'+(bad?'neg':'')+'" style="font-size:11px">'+n+'</span>';}},
+ {k:"av",  h:"Inventory on hand",n:1,f:x=>fmt(x.r.av)},
+ {k:"oo",  h:"Coming stock",     n:1,f:x=>x.r.oo?fmt(x.r.oo):""},
+ {k:"du",  h:"Due date",         n:1,f:x=>{if(!x.r.oo||!x.r.du)return"";
+   const late=x.r.du<META.today;
+   return late?'<span class="neg">'+x.r.du+'</span>':x.r.du;}},
+ {k:"q",   h:"Sold qty",         n:1,f:x=>fmt(x.q,1)},
+ {k:"rev", h:"Sales $",          n:1,f:x=>money(x.rev)},
+ {k:"C",   h:"Item avg cost",    n:1,f:x=>x.r.C==null?'<span class="neg">no cost</span>':money2(x.r.C)},
+ {k:"shipu",h:"Real S&H /unit",  n:1,f:x=>x.q>0?money2(x.ship/x.q):"—"},
+ {k:"S",   h:"Est S&H /unit",    n:1,f:x=>money2(x.r.S)},
+ {k:"net", h:"Total profit",     n:1,f:x=>x.net==null?"—":'<b class="'+(x.net>=0?'pos':'neg')+'">'+money(x.net)+'</b>'},
+ {k:"mgn", h:"Total margin",     n:1,f:x=>x.mgn==null?"—":'<span class="'+(x.mgn>=0?'pos':'neg')+'">'+pct(x.mgn)+'</span>'},
+ {k:"rv",  h:"Return $ (refunded)",n:1,f:x=>x.rv?'<span class="neg">'+money(x.rv)+'</span>':""},
+ {k:"rc",  h:"Return cost $",     n:1,f:x=>x.rc?'<span class="neg">'+money(x.rc)+'</span>':""},
+ {k:"rrate",h:"Return rate",     n:1,f:x=>x.rrate?pct(x.rrate):""},
+];
+
+function kpis(rs){
+ const T=rs.reduce((a,x)=>{a.q+=x.q;a.rev+=x.rev;a.cogs+=(x.cogs||0);a.ship+=x.ship;
+  a.fee+=x.fee;a.ad+=x.ad;a.net+=(x.net||0);a.rv+=x.rv;a.rq+=x.rq;a.rc+=x.rc;return a;},
+  {q:0,rev:0,cogs:0,ship:0,fee:0,ad:0,net:0,rv:0,rq:0,rc:0});
+ const box=[["Total qty sold",fmt(T.q,0)],["Total sales $",money(T.rev)],
+  ["Net profit $",money(T.net)],["Profit margin %",T.rev?pct(T.net/T.rev*100):"—"],
+  ["Item cost $",money(T.cogs)],["Shipping fee $",money(T.ship)],
+  ["Transaction 12% $",money(T.fee)],["AD cost $",money(T.ad)],
+  ["RMA qty",fmt(T.rq,0)],["RMA $ refunded",money(T.rv)],
+  ["RMA cost $",money(T.rc)],["RMA %",T.q?pct(T.rq/T.q*100):"—"]];
+ $("#kpis").innerHTML=box.map(b=>'<div class="kpi"><div class="k">'+b[0]+'</div><div class="v">'+b[1]+'</div></div>').join("");
+}
+
+function render(){
+ const rs=rows();
+ kpis(rs);
+ rs.sort((a,b)=>{const g=x=>({s:x.r.s,sc:x.r.sc,t:x.r.t,av:x.r.av,oo:x.r.oo,C:x.r.C,S:x.r.S,
+   shipu:x.q>0?x.ship/x.q:0}[sortK]!==undefined?{s:x.r.s,sc:x.r.sc,t:x.r.t,av:x.r.av,oo:x.r.oo,
+   C:x.r.C,S:x.r.S,shipu:x.q>0?x.ship/x.q:0}[sortK]:x[sortK]);
+  const p=g(a),r2=g(b);return ((p==null)-(r2==null))||((p>r2?1:p<r2?-1:0)*sortD);});
+ const PS=+$("#ps").value, mx=Math.max(1,Math.ceil(rs.length/PS)); page=Math.min(page,mx-1);
+ $("#pi").textContent="page "+(page+1)+" / "+mx;
+ $("#cnt").textContent="— "+rs.length.toLocaleString()+" SKUs in range";
+ let h='<table><thead><tr>'+COLS.map(c=>'<th class="'+(c.n?'num':'')+'" data-k="'+c.k+'">'+c.h+
+   (sortK===c.k?(sortD<0?' ▼':' ▲'):'')+'</th>').join("")+'</tr></thead><tbody>';
+ rs.slice(page*PS,(page+1)*PS).forEach(x=>{
+  h+='<tr data-s="'+x.r.s.replace(/"/g,'&quot;')+'"'+(selected===x.r.s?' class="sel"':'')+'>'+
+   COLS.map(c=>'<td class="'+(c.n?'num':'')+'">'+c.f(x)+'</td>').join("")+'</tr>';});
+ $("#tbl").innerHTML=h+'</tbody></table>';
+ document.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+  if(sortK===th.dataset.k)sortD*=-1;else{sortK=th.dataset.k;sortD=-1;}render();});
+ document.querySelectorAll("#tbl tbody tr").forEach(tr=>tr.onclick=()=>{
+  selected=tr.dataset.s;render();channel();});
+}
+
+// ---- CHANNEL RECORD for the selected SKU ----
+function channel(){
+ const r=R.find(x=>x.s===selected);
+ if(!r){$("#chbox").innerHTML='<p class="note">Click a SKU above to see how it sells on each account.</p>';return;}
+ const ms=rangeMonths()||[];
+ // EVERY seller account gets a column, whether it sold this SKU or not — a zero is
+ // itself the answer to "who isn't selling this?". Biggest seller of THIS sku on the
+ // left; accounts tied at zero keep the overall size order (META.channels is already
+ // ranked by total sales), so the layout stays stable as you change the date range.
+ const A={}; META.channels.forEach(c=>A[c]=agg(r,ms,c));  // real per-account numbers
+ const chans=META.channels.slice().sort((a,b)=>
+   (A[b].rev-A[a].rev)||(META.channels.indexOf(a)-META.channels.indexOf(b)));
+ if(!chans.length){$("#chbox").innerHTML='<p class="note"><b>'+r.s+'</b> — no channel activity in this range.</p>';return;}
+ const all=agg(r,ms,null);
+ const sum=f=>chans.reduce((s,c)=>s+(f(A[c])||0),0);
+ const price=c=>r.p[c], marg=c=>{const p=r.p[c];
+  return (p!=null&&r.C!=null)?((p*(1-0.12-AD)-r.C-r.S)/p*100):null;};
+ let h='<b>'+r.s+'</b> <span class="note">· '+(r.sc||"")+' · what each seller account sold and made, for the selected date range</span>'+
+  '<table class="chtbl" style="margin-top:6px"><thead><tr><th>SKU</th>'+
+  chans.map(c=>'<th class="num">'+c+'</th>').join("")+'<th class="num">TOTAL</th></tr></thead><tbody>';
+ // grey out the zeros so the accounts that ARE selling stand out
+ const z=s=>(s==="$0"||s==="0")?'<span style="color:#c3c8d0">'+s+'</span>':s;
+ const line=(lab,fn,tot,cls)=>{h+='<tr'+(cls?' class="'+cls+'"':'')+'><td>'+lab+'</td>'+
+   chans.map(c=>'<td class="num">'+z(fn(c))+'</td>').join("")+
+   '<td class="num"><b>'+(tot==null?"":tot)+'</b></td></tr>';};
+ const neg=v=>v?'<span class="neg">'+money(v)+'</span>':"";
+ line("Total sold qty",  c=>fmt(A[c].q,1),      fmt(sum(a=>a.q),1));
+ line("Total sales $",   c=>money(A[c].rev),    money(sum(a=>a.rev)));
+ line("Item cost $",     c=>neg(A[c].cogs),     neg(sum(a=>a.cogs)));
+ line("Shipping $",      c=>neg(A[c].ship),     neg(sum(a=>a.ship)));
+ line("Marketplace fee $ (12% + ad)", c=>neg(A[c].fee+A[c].ad), neg(sum(a=>a.fee+a.ad)));
+ line("Return cost $",   c=>neg(A[c].rc),       neg(sum(a=>a.rc)));
+ line("Total profit $",  c=>A[c].net==null?"—":(!A[c].rev&&!A[c].q)?"$0":
+      '<b class="'+(A[c].net>=0?'pos':'neg')+'">'+money(A[c].net)+'</b>',
+      all.net==null?"—":'<span class="'+(all.net>=0?'pos':'neg')+'">'+money(all.net)+'</span>', "tot");
+ line("Profit %",        c=>{const a=A[c];return (a.net==null||!a.rev)?"—":
+   '<span class="'+(a.net>=0?'pos':'neg')+'">'+(a.net/a.rev*100).toFixed(0)+'%</span>';},
+   (all.net==null||!all.rev)?"—":'<span class="'+(all.net>=0?'pos':'neg')+'">'+(all.net/all.rev*100).toFixed(0)+'%</span>');
+ line("Listing price $ (no ad)", c=>price(c)==null?"na":money2(price(c)), "");
+ line("Set profit margin %", c=>{const m=marg(c);return m==null?"na":
+   '<span class="'+(m>=0?'pos':'neg')+'">'+m.toFixed(0)+'%</span>';}, "");
+ $("#chbox").innerHTML=h+'</tbody></table>';
+}
+
+function recalc(){page=0;render();channel();}
+["fty","fsc","fch","ps"].forEach(id=>$("#"+id).onchange=recalc);
+["q","qx","fnt"].forEach(id=>$("#"+id).oninput=recalc);
+["d1","d2"].forEach(id=>$("#"+id).onchange=()=>{
+ document.querySelectorAll("#quick button").forEach(x=>x.className="");recalc();});
+$("#ad").oninput=e=>{AD=+e.target.value/100;$("#adv").textContent=(+e.target.value)+"%";recalc();};
+$("#pb").onclick=()=>{page=Math.max(0,page-1);render();};
+$("#pn").onclick=()=>{page++;render();};
+// ---- downloads. Both honour every filter and the date range currently on screen,
+// and both write the WHOLE filtered set, not just the page you can see. ----
+const esc=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+function save(name,lines){
+ const b=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;
+ a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+function stamp(){const d=$("#d1").value,e=$("#d2").value;return d+"_to_"+e;}
+
+// one row per SKU — the sales record as you see it
+$("#x").onclick=()=>{
+ const rs=rows();
+ const head=["SKU","Sub category","Listing type","Inventory on hand","Coming stock","Due date","Sold qty",
+  "Sales $","Item avg cost","Real S&H total","Est S&H /unit","Item cost total","12% fee","AD cost",
+  "Total profit","Total margin %","Return $","Return cost $","Return qty","Return rate %"];
+ save("sales_by_sku_"+stamp()+".csv",
+  [head.join(",")].concat(rs.map(x=>[x.r.s,x.r.sc||"",x.r.t||"",x.r.av,x.r.oo||0,x.r.du||"",
+   Math.round(x.q),Math.round(x.rev),x.r.C==null?"":x.r.C,Math.round(x.ship),x.r.S,
+   x.cogs==null?"":Math.round(x.cogs),Math.round(x.fee),Math.round(x.ad),
+   x.net==null?"":Math.round(x.net),x.mgn==null?"":x.mgn.toFixed(1),
+   Math.round(x.rv),Math.round(x.rc),Math.round(x.rq),
+   x.rrate==null?"":x.rrate.toFixed(1)].map(esc).join(","))));};
+
+// one row per SKU PER SELLER ACCOUNT — the channel record for every filtered SKU
+$("#xc").onclick=()=>{
+ const ms=rangeMonths()||[], rs=rows();
+ const head=["SKU","Sub category","Listing type","Seller account","Marketplace fee applies",
+  "Sold qty","Sales $","Item avg cost","Item cost total","Shipping $","12% fee","AD cost",
+  "Return $","Return cost $","Return qty","Total profit","Profit %",
+  "Live listing price","Set profit margin %"];
+ const out=[head.join(",")];
+ rs.forEach(x=>{const r=x.r;
+  META.channels.forEach(c=>{
+   const sold=r.cm[c]&&ms.some(m=>r.cm[c][m]);
+   if(!sold&&r.p[c]==null)return;              // account never touched this SKU
+   const a=agg(r,ms,c);
+   const pr=r.p[c], sm=(pr!=null&&r.C!=null)?((pr*(1-0.12-AD)-r.C-r.S)/pr*100):null;
+   out.push([r.s,r.sc||"",r.t||"",c,MKT.has(c)?"yes":"no",
+    Math.round(a.q),Math.round(a.rev),r.C==null?"":r.C,a.cogs==null?"":Math.round(a.cogs),
+    Math.round(a.ship),Math.round(a.fee),Math.round(a.ad),
+    Math.round(a.rv),Math.round(a.rc),Math.round(a.rq),
+    a.net==null?"":Math.round(a.net),(a.net==null||!a.rev)?"":(a.net/a.rev*100).toFixed(1),
+    pr==null?"":pr, sm==null?"":sm.toFixed(1)].map(esc).join(","));});});
+ save("sales_by_account_"+stamp()+".csv",out);};
+
+// build the dropdowns
+[...new Set(R.map(r=>r.sc).filter(Boolean))].sort().forEach(s=>{
+ const o=document.createElement("option");o.value=s;o.textContent=s;$("#fsc").appendChild(o);});
+META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;$("#fch").appendChild(o);});
+// one shared datalist feeds the autocomplete on BOTH note boxes
+(function(){const dl=document.createElement("datalist");dl.id="ntlist";
+ (META.tags||[]).forEach(t=>{const o=document.createElement("option");o.value=t;dl.appendChild(o);});
+ document.body.appendChild(dl);})();
+
+// ---- IN STOCK BUT NOT LIVE (Joe's spec, row 19) ----
+(function(){
+ if(!NL.length){$("#nlsum").textContent="No items with stock are missing listings.";return;}
+ (META.accts||[]).forEach(c=>{
+  const l=document.createElement("label");
+  l.innerHTML='<input type="checkbox" class="nlacct" value="'+c+'"> '+c;
+  $("#nla").appendChild(l);});
+ [...new Set(NL.map(r=>r.sc).filter(Boolean))].sort().forEach(s=>{
+  const o=document.createElement("option");o.value=s;o.textContent=s;$("#nlsc").appendChild(o);});
+ const sel=()=>[...document.querySelectorAll(".nlacct:checked")].map(x=>x.value);
+ const trm=s=>String(s||"").toUpperCase().split(",").map(x=>x.trim()).filter(Boolean);
+ function why(r){
+  if(r.u24===0&&!r.ls) return r.dk>0?"listed once, all turned OFF — never sold":"NEW item — never listed (photos/listing not created?)";
+  if(r.u24===0)        return r.dk>0?"old item, listings all OFF":"old item — listings gone";
+  return r.dk>0?"WAS SELLING — listings all turned OFF (fix!)":"WAS SELLING — listings gone/deleted (fix!)";
+ }
+ // free stock (Zone1 minus committed) vs TODAY's 4-day safety point. An item under
+ // its safety point is one the team's own -2000 rule would keep dark anyway, so
+ // flagging it as a missing listing is a false alarm. Never-sold items have sp=0.
+ const deep=r=>r.av>=(r.sp||0);
+ function flt(){
+  const a=sel(),ty=$("#nlty").value,t=$("#nlt").value,sc=$("#nlsc").value,sp=$("#nlsp").value;
+  const nt=$("#nlnt").value;
+  const qi=trm($("#nlq").value),qe=trm($("#nlqx").value);
+  return NL.filter(r=>{
+   const lv=r.lv||[],u=r.s.toUpperCase();
+   const hit=a.length?a.every(x=>lv.indexOf(x)<0):lv.length===0;
+   return hit&&(!ty||r.t===ty)&&(!sc||r.sc===sc)&&
+    (!nt||noteMatch(r,nt))&&
+    (!sp||(sp==="ok"?deep(r):!deep(r)))&&
+    (!qi.length||qi.some(x=>u.includes(x)))&&(!qe.length||!qe.some(x=>u.includes(x)))&&
+    (!t||(t==="new"?(r.u24===0&&!r.ls):(r.u24>0||!!r.ls)));});
+ }
+ function draw(){
+  const rs=flt(), a=sel();
+  const sg=rs.filter(r=>r.t!=="combo"), kt=rs.filter(r=>r.t==="combo");
+  const sgv=sg.reduce((s,r)=>s+r.val,0), sgu=sg.reduce((s,r)=>s+r.av,0);
+  const ktv=kt.reduce((s,r)=>s+r.val,0);
+  const mode=$("#nlsp").value;
+  const hidden=NL.filter(r=>{const lv=r.lv||[];
+   return (a.length?a.every(x=>lv.indexOf(x)<0):lv.length===0)&&!deep(r);}).length;
+  $("#nlsum").textContent=
+   sg.length.toLocaleString()+" single items ("+sgu.toLocaleString()+" units, $"+Math.round(sgv).toLocaleString()+" of real stock) "+
+   (a.length?("are NOT live on "+a.join(" + ")):"have ZERO live listings anywhere")+
+   (kt.length?" — plus "+kt.length.toLocaleString()+" combos buildable from that same stock ($"+Math.round(ktv).toLocaleString()+", not added to the total)":"")+
+   ". Stock qty is FREE stock: Zone-1 only, minus units already committed to open orders."+
+   (mode==="ok"&&hidden?" "+hidden.toLocaleString()+" more are hidden because their free stock is under the 4-day safety point — the team keeps those dark on purpose.":"")+
+   " 'Last sold' tells you a broken listing from a new item never listed.";
+  let h='<table><thead><tr><th>SKU</th><th>Sub category</th><th>Type</th><th class="num">Free stock</th>'+
+   '<th class="num">4-day safety pt</th><th class="num">Stock value $</th><th>Last sold</th>'+
+   '<th class="num">Sold 24mo</th><th>Live on</th><th>Why (best guess)</th></tr></thead><tbody>';
+  rs.sort((x,y)=>y.val-x.val).slice(0,300).forEach(r=>{
+   const w=why(r), thin=!deep(r);
+   h+='<tr><td>'+r.s+'</td><td>'+(r.sc||"")+'</td><td>'+(r.t||"")+'</td>'+
+    '<td class="num">'+(thin?'<span class="neg">'+r.av.toLocaleString()+'</span>':r.av.toLocaleString())+'</td>'+
+    '<td class="num">'+(r.sp||0).toLocaleString()+'</td>'+
+    '<td class="num">'+(r.val?'$'+r.val.toLocaleString():'—')+'</td><td>'+(r.ls||'<span class="neg">never</span>')+'</td>'+
+    '<td class="num">'+(r.u24||"")+'</td><td style="white-space:normal;max-width:210px;font-size:11px;color:#52514e">'+
+    ((r.lv&&r.lv.length)?r.lv.join(", "):'<span class="neg">nowhere</span>')+'</td>'+
+    '<td>'+(w.indexOf("fix!")>=0?'<span class="neg">'+w+'</span>':w)+'</td></tr>';});
+  $("#nltbl").innerHTML=h+'</tbody></table>';
+ }
+ $("#nla").addEventListener("change",ev=>{
+  if(ev.target.id==="nlnone"&&ev.target.checked)document.querySelectorAll(".nlacct").forEach(x=>x.checked=false);
+  if(ev.target.classList.contains("nlacct")&&ev.target.checked)$("#nlnone").checked=false;
+  if(!sel().length)$("#nlnone").checked=true;
+  draw();});
+ ["nlty","nlt","nlsc","nlsp"].forEach(id=>$("#"+id).onchange=draw);
+ ["nlq","nlqx","nlnt"].forEach(id=>$("#"+id).oninput=draw);
+ $("#nlx").onclick=()=>{
+  const rs=flt();
+  const lines=[["SKU","Sub category","Type","Free stock","4-day safety point",
+   "Deep enough to list","Stock value $","Last sold","Sold 24mo","Live on","Why"].join(",")]
+   .concat(rs.map(r=>[r.s,r.sc||"",r.t||"",r.av,r.sp||0,deep(r)?"yes":"no",r.val,
+    r.ls||"never",r.u24,(r.lv||[]).join(" | ")||"nowhere",why(r)].map(esc).join(",")));
+  save("in_stock_not_listed_"+META.today+".csv",lines);};
+ draw();
+})();
+
+$("#sub").textContent="Built "+META.built+" · default view = last 24 months · every number recalculates for the date range you pick · "+
+ "profit = sales − 12% fee − AD − shipping − item cost, then minus return credits · no overhead · JL retail side";
+$("#defs").innerHTML=[
+ ["Date range","Everything on this page — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. Default is the last 24 months."],
+ ["Summary box","Totals for every SKU that matches the filters in the chosen range. Item cost = average cost × qty sold. Transaction 12% and AD are charged on marketplace sales only. RMA = credited returns tied to sales in the range."],
+ ["Inventory on hand","FREE sellable stock right now: good Zone-1 units minus anything committed to open sales orders. Combos = how many complete kits the scarcest part allows."],
+ ["Coming stock / Due date","Units on an OPEN purchase order — a container already on the water. We cut the PO when the factory says the goods are at the port in China, and the PO date is when we expect to receive it, normally about three weeks out. Only POs still marked Open count: Completed means received, Voided means cancelled. Due date is that expected date; a red date means the container is past due. POs more than 90 days past due are treated as dead and left out entirely. Treat the quantity as about 95% firm — when the container is actually counted in, roughly one line in thirty comes in short or over."],
+ ["Real S&H /unit","What UPS/FedEx actually charged, from their invoices, divided by units sold in the range. Estimate is used where no carrier record matched."],
+ ["Total profit / margin","Sales − 12% fee − AD − shipping − item cost − return credits, for the chosen range. Margin = that profit ÷ sales."],
+ ["Return $ / rate","Credited returns (CCNOTE) tied to sales in the range. Rate = returned units ÷ units sold."],
+ ["Channel record","Pick any SKU above. EVERY seller account gets a column, whether it sold the item or not — a zero tells you who is not selling it. Accounts run left to right from the biggest seller of that SKU to the smallest; the ones sitting at zero stay in overall account-size order. One column per seller account and marketplace — Topline eBay, Topline Amazon, Champs eBay, Champs Amazon, GTRacers, Streetune, Proexhaust, Vision-Technology — plus the non-marketplace routes: I3 Vendor (what we sell to the sister company for Amazon Vendor Central), Dropship, Wholesale and Website. Every line is that account's own number for the chosen date range, not a share-out of the SKU total. Total profit = that account's sales − item cost − shipping − marketplace fee − return cost. The 12% + ad fee is charged on the marketplace accounts only; I3, wholesale, dropship and website do not pay it. The last two rows are the account's CURRENT live listing price and the margin one unit would earn at that price."],
+ ["Which marketplace","Amazon orders are identified by their own 3-7-7 order number. Everything else ChannelAdvisor sends us carries a ChannelAdvisor order id, which we read as eBay — so the small number of Walmart orders currently sit inside that account's eBay column."],
+ ["Free stock vs 4-day safety point","Stock qty in this section is FREE stock: Zone-1 (the only sellable location) minus every unit already committed to an open sales order. The safety point is 4 × the item's average daily units over the last 90 days — the same rule the team uses when it pushes qty −2000 to go dark. By default this section only shows items whose free stock is AT or ABOVE their safety point, because anything thinner is deliberately dark, not a broken listing. Never-sold items have a safety point of 0 and always appear. Switch the 'Stock depth' box to see the thin ones or everything."],
+ ["In stock but NOT LIVE","Items with sellable stock that no marketplace can sell right now. Leave the boxes unticked to see items live NOWHERE, or tick accounts to see what is missing from those specific accounts (the 'Live on' column shows where an item IS listed, since some are deliberately one-account items). 'Last sold = never' means the listing was never created; a date means it used to sell and the listing is now off or gone. Combo stock is reported separately because it shares the same component units and is not added to the singles total. This section always shows stock as of today, not the date range."],
+].map(d=>'<tr><td>'+d[0]+'</td><td>'+d[1]+'</td></tr>').join("");
+render();
+</script>
+<script>
+// ---------- auth + data loading (nothing confidential lives in this file) ----------
+const SB_URL='https://poescwjdppbweqfdqcue.supabase.co', SB_KEY='sb_publishable_E0mk19EAf4cPZMk7ZEcXLA__yzeiIJQ';
+const $$=s=>document.querySelector(s);
+const store={
+ get:()=>{try{return JSON.parse(localStorage.getItem("jlbi")||"null")}catch(e){return null}},
+ set:v=>localStorage.setItem("jlbi",JSON.stringify(v)),
+ clear:()=>localStorage.removeItem("jlbi")};
+
+async function authFetch(path,opts){
+ const s=store.get();
+ return fetch(SB_URL+path,Object.assign({},opts,{headers:Object.assign(
+   {apikey:SB_KEY,Authorization:"Bearer "+(s&&s.access_token||SB_KEY),
+    "Content-Type":"application/json"},(opts||{}).headers||{})}));
+}
+async function signIn(email,password){
+ const r=await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",
+   headers:{apikey:SB_KEY,"Content-Type":"application/json"},
+   body:JSON.stringify({email:email,password:password})});
+ const j=await r.json();
+ if(!r.ok)throw new Error(j.error_description||j.msg||j.message||"Sign in failed");
+ store.set(j); return j;
+}
+async function refresh(){                       // keeps you signed in across days
+ const s=store.get(); if(!s||!s.refresh_token)return null;
+ const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",
+   headers:{apikey:SB_KEY,"Content-Type":"application/json"},
+   body:JSON.stringify({refresh_token:s.refresh_token})});
+ if(!r.ok){store.clear();return null;}
+ const j=await r.json(); store.set(j); return j;
+}
+
+// the payload is stored in ordered chunks; stitch them back together
+async function loadData(){
+ const r=await authFetch("/rest/v1/bi_dataset?name=eq.sales&select=seq,chunk&order=seq.asc");
+ if(r.status===401){store.clear();throw new Error("Session expired - sign in again");}
+ if(!r.ok)throw new Error("Could not read data ("+r.status+")");
+ const rows=await r.json();
+ if(!rows.length)throw new Error(
+   "Signed in, but this account is not on the access list for this report.");
+ return JSON.parse(rows.map(x=>x.chunk).join(""));
+}
+
+function boot(payload){
+ window.__R=payload.rows||[]; window.__NL=payload.notlive||[]; window.__META=payload.meta||{};
+ $$("#gate").remove(); $$("#signout").hidden=false;
+ // run the SAME script the internal portal uses, now that the data is in place
+ new Function(document.getElementById("portalcode").textContent)();
+}
+async function start(showGate){
+ try{ const p=await loadData(); boot(p); }
+ catch(e){ if(showGate){$$("#er").textContent=e.message;} else {
+   $$("#gate").style.visibility="visible"; } }
+}
+$$("#signout").onclick=()=>{store.clear();location.reload();};
+$$("#lf").onsubmit=async ev=>{
+ ev.preventDefault(); $$("#er").textContent=""; $$("#go").disabled=true;
+ $$("#go").textContent="Signing in...";
+ try{ await signIn($$("#em").value.trim(),$$("#pw").value); await start(true); }
+ catch(e){ $$("#er").textContent=e.message; }
+ finally{ $$("#go").disabled=false; $$("#go").textContent="Sign in"; }
+};
+// already signed in from last time? go straight in.
+(async()=>{ if(store.get()){ await refresh(); await start(false); } })();
+</script>
+</body>
+</html>
