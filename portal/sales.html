@@ -455,6 +455,27 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
  // its safety point is one the team's own -2000 rule would keep dark anyway, so
  // flagging it as a missing listing is a false alarm. Never-sold items have sp=0.
  const deep=r=>r.av>=(r.sp||0);
+ // click-to-sort, same behaviour as the sales record above: first click on a
+ // column sorts it high-to-low, clicking the same one again flips it. Default
+ // stays biggest stock value first, which is the order this list is useful in.
+ const NLCOLS=[
+  {k:"s",  h:"SKU"},              {k:"sc", h:"Sub category"},
+  {k:"t",  h:"Type"},             {k:"av", h:"Free stock",      n:1},
+  {k:"sp", h:"4-day safety pt",   n:1},
+  {k:"val",h:"Stock value $",     n:1}, {k:"ls", h:"Last sold"},
+  {k:"u24",h:"Sold 24mo",         n:1}, {k:"lv", h:"Live on"},
+  {k:"w",  h:"Why (best guess)"}];
+ let nlK="val", nlD=-1;
+ function nlSort(rs){
+  const g=r=>{
+   if(nlK==="lv") return (r.lv||[]).join(", ");
+   if(nlK==="w")  return why(r);
+   if(nlK==="ls") return r.ls||"";      // "never" sorts before any real date
+   const v=r[nlK]; return v==null?"":v;};
+  return rs.slice().sort((a,b)=>{const p=g(a),q=g(b);
+   if(typeof p==="number"&&typeof q==="number") return (p-q)*nlD;
+   return String(p).localeCompare(String(q))*nlD;});
+ }
  function flt(){
   const a=sel(),ty=$("#nlty").value,t=$("#nlt").value,sc=$("#nlsc").value,sp=$("#nlsp").value;
   const nt=$("#nlnt").value;
@@ -483,10 +504,9 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
    ". Stock qty is FREE stock: Zone-1 only, minus units already committed to open orders."+
    (mode==="ok"&&hidden?" "+hidden.toLocaleString()+" more are hidden because their free stock is under the 4-day safety point — the team keeps those dark on purpose.":"")+
    " 'Last sold' tells you a broken listing from a new item never listed.";
-  let h='<table><thead><tr><th>SKU</th><th>Sub category</th><th>Type</th><th class="num">Free stock</th>'+
-   '<th class="num">4-day safety pt</th><th class="num">Stock value $</th><th>Last sold</th>'+
-   '<th class="num">Sold 24mo</th><th>Live on</th><th>Why (best guess)</th></tr></thead><tbody>';
-  rs.sort((x,y)=>y.val-x.val).slice(0,300).forEach(r=>{
+  let h='<table><thead><tr>'+NLCOLS.map(c=>'<th class="'+(c.n?'num':'')+'" data-nk="'+c.k+'">'+
+    c.h+(nlK===c.k?(nlD<0?' ▼':' ▲'):'')+'</th>').join("")+'</tr></thead><tbody>';
+  nlSort(rs).slice(0,300).forEach(r=>{
    const w=why(r), thin=!deep(r);
    h+='<tr><td>'+r.s+'</td><td>'+(r.sc||"")+'</td><td>'+(r.t||"")+'</td>'+
     '<td class="num">'+(thin?'<span class="neg">'+r.av.toLocaleString()+'</span>':r.av.toLocaleString())+'</td>'+
@@ -496,6 +516,10 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
     ((r.lv&&r.lv.length)?r.lv.join(", "):'<span class="neg">nowhere</span>')+'</td>'+
     '<td>'+(w.indexOf("fix!")>=0?'<span class="neg">'+w+'</span>':w)+'</td></tr>';});
   $("#nltbl").innerHTML=h+'</tbody></table>';
+  document.querySelectorAll("#nltbl th[data-nk]").forEach(th=>th.onclick=()=>{
+   const k=th.dataset.nk;
+   if(nlK===k)nlD*=-1; else {nlK=k;nlD=(k==="s"||k==="sc"||k==="t")?1:-1;}
+   draw();});
  }
  $("#nla").addEventListener("change",ev=>{
   if(ev.target.id==="nlnone"&&ev.target.checked)document.querySelectorAll(".nlacct").forEach(x=>x.checked=false);
@@ -505,7 +529,7 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
  ["nlty","nlt","nlsc","nlsp"].forEach(id=>$("#"+id).onchange=draw);
  ["nlq","nlqx","nlnt"].forEach(id=>$("#"+id).oninput=draw);
  $("#nlx").onclick=()=>{
-  const rs=flt();
+  const rs=nlSort(flt());        // download follows whatever you sorted on screen
   const lines=[["SKU","Sub category","Type","Free stock","4-day safety point",
    "Deep enough to list","Stock value $","Last sold","Sold 24mo","Live on","Why"].join(",")]
    .concat(rs.map(r=>[r.s,r.sc||"",r.t||"",r.av,r.sp||0,deep(r)?"yes":"no",r.val,
