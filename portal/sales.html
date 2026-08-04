@@ -319,12 +319,18 @@ function kpis(rs){
   a.fee+=x.fee;a.ad+=x.ad;a.net+=(x.net||0);a.rv+=x.rv;a.rq+=x.rq;a.rc+=x.rc;a.frt+=x.frt;return a;},
   {q:0,rev:0,cogs:0,ship:0,fee:0,ad:0,net:0,rv:0,rq:0,rc:0,frt:0});
  const box=[["Total qty sold",fmt(T.q,0)],["Total sales $",money(T.rev)],
-  ["Net profit $",money(T.net)],["Profit margin %",T.rev?pct(T.net/T.rev*100):"—"],
+  ["Net profit $",money(T.net)],["Profit margin %",(T.rev+T.frt)?pct(T.net/(T.rev+T.frt)*100):"—"],
   ["Item cost $",money(T.cogs)],["Shipping fee $",money(T.ship)],
   ["Freight billed $",money(T.frt)],
   ["Transaction 12% $",money(T.fee)],["AD cost $",money(T.ad)],
   ["RMA qty",fmt(T.rq,0)],["RMA $ refunded",money(T.rv)],
-  ["RMA cost $",money(T.rc)],["RMA %",T.q?pct(T.rq/T.q*100):"—"]];
+  // two DIFFERENT rates, deliberately side by side. "RMA %" is units back over
+  // units out - the number to put in front of a factory. "RMA cost %" is what the
+  // returns actually take off the P&L, which runs lower because returns skew to
+  // cheaper items and most units are scanned back into sellable stock.
+  ["RMA cost $",money(T.rc)],
+  ["RMA cost % of sales",(T.rev+T.frt)?pct(T.rc/(T.rev+T.frt)*100):"—"],
+  ["RMA % (units)",T.q?pct(T.rq/T.q*100):"—"]];
  $("#kpis").innerHTML=box.map(b=>'<div class="kpi"><div class="k">'+b[0]+'</div><div class="v">'+b[1]+'</div></div>').join("");
 }
 
@@ -590,6 +596,8 @@ $("#defs").innerHTML=[
  ["Freight billed to customer","When a dropship or wholesale customer asks US to ship on our carrier account, the ERP Freight field carries what we billed them for it. A BLANK Freight field means they shipped on their own account, so we have no carrier cost at all and none is charged. Previously we deducted the carrier cost on the billed orders but never counted their payment — a one-sided entry worth $331,937 over 24 months, $300,914 of it dropship, which made those channels read as loss-making on every order. Freight billed is now added back and shown on its own line so you can see both halves."],
  ["Total profit / margin","Sales + freight billed − item cost − shipping − 12% marketplace fee − ad spend − return cost. No overhead, no labour, no rent — this is contribution margin, not net profit. The 12% and the ad slider are charged on marketplace sales only. Return COST is the real loss (labels, product never scanned back, no-item refunds), not the refunded amount — most returned units go back into sellable stock, so counting the refund would overstate the damage."],
  ["Summary box","Totals for every SKU matching the filters, over the chosen range. Item cost = cost × units sold. RMA figures cover credited returns tied to sales in that range."],
+ ["Net profit and margin","Net profit is AFTER return cost - the RMA cost tile is already subtracted. Sales + freight billed, minus item cost, shipping, the 12% marketplace fee, ad spend, and return cost. Margin divides that by what the customer actually paid (sales + freight), so it compares fairly against marketplace prices that already include shipping. No overhead, labour or rent: this is contribution margin, not net profit in the accounting sense."],
+ ["RMA % vs RMA cost % - two different numbers","RMA % is units returned divided by units shipped, boxes coming back regardless of price. That is the number to put in front of a factory. RMA cost % is what returns actually take off the P&amp;L, and it runs lower because returns skew toward cheaper items and most units are scanned back into sellable stock and sold again. Quote the unit rate to a supplier, the cost rate to Joe. The refunded figure beside them is neither - most of it is recovered by reselling the unit."],
  ["Return rate","Units returned ÷ units sold. Over 24 months that runs about 5.6%. Quote THIS number to factories, because it counts boxes coming back regardless of price. The dollar impact is smaller — return cost is about 2.8% of sales — because returns skew toward cheaper items."],
  ["Inventory on hand","FREE sellable stock right now: good Zone-1 units minus anything already committed to an open sales order. Zones 2-9 hold returns and defective product and are excluded. A combo shows how many complete kits the scarcest component allows."],
  ["Coming stock / Due date","Units on an OPEN purchase order — a container already on the water. The PO is cut when the factory says goods are at the port in China, and the PO date is when we expect to receive it, normally about three weeks out. Only POs still marked Open count: Completed means received, Voided means cancelled. A red due date is past due. POs more than 90 days past due are treated as dead and left out. Treat the quantity as roughly 95% firm — about one line in thirty arrives short or over."],
