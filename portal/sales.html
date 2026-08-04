@@ -37,6 +37,16 @@ td.num,th.num{text-align:right}
 tbody tr:hover td{background:#eef4fb}tbody tr.sel td{background:#dbeafe}
 tbody tr{cursor:pointer}
 .scroll{max-height:52vh;overflow:auto;border:1px solid #d8dbe0;border-radius:8px}
+/* freeze the SKU column so it stays put when you scroll right. The header cell is
+   already sticky to the top, so the corner cell has to out-rank both. Sticky cells
+   need their own background or the columns underneath show through -- which also
+   means the row hover/selected colours have to be repeated here by hand. */
+#tbl td:first-child,#nltbl td:first-child{position:sticky;left:0;z-index:1;
+  background:#fff;font-weight:600;box-shadow:1px 0 0 #eceef1}
+#tbl th:first-child,#nltbl th:first-child{position:sticky;left:0;z-index:4;
+  background:#3d4b5c}
+#tbl tbody tr:hover td:first-child,#nltbl tbody tr:hover td:first-child{background:#eef4fb}
+#tbl tbody tr.sel td:first-child{background:#dbeafe}
 .pos{color:#0a8a0a;font-weight:600}.neg{color:#c62828;font-weight:600}
 .pag{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:12px}
 .pag button{padding:3px 10px;border:1px solid #c9ced6;border-radius:6px;background:#fff;cursor:pointer}
@@ -291,13 +301,19 @@ function kpis(rs){
  $("#kpis").innerHTML=box.map(b=>'<div class="kpi"><div class="k">'+b[0]+'</div><div class="v">'+b[1]+'</div></div>').join("");
 }
 
+// Sorting lives here so the DOWNLOAD comes out in the same order as the screen.
+// It used to sort only inside render(), so the CSV arrived in raw catalog order
+// and looked like a random pile of small items instead of the top sellers.
+function sortRows(rs){
+ const g=x=>{const own={s:x.r.s,sc:x.r.sc,t:x.r.t,nt:x.r.nt,av:x.r.av,oo:x.r.oo,du:x.r.du,
+   C:x.r.C,S:x.r.S,shipu:x.q>0?x.ship/x.q:0};
+  return own[sortK]!==undefined?own[sortK]:x[sortK];};
+ return rs.sort((a,b)=>{const p=g(a),r2=g(b);
+  return ((p==null)-(r2==null))||((p>r2?1:p<r2?-1:0)*sortD);});
+}
 function render(){
- const rs=rows();
+ const rs=sortRows(rows());
  kpis(rs);
- rs.sort((a,b)=>{const g=x=>({s:x.r.s,sc:x.r.sc,t:x.r.t,av:x.r.av,oo:x.r.oo,C:x.r.C,S:x.r.S,
-   shipu:x.q>0?x.ship/x.q:0}[sortK]!==undefined?{s:x.r.s,sc:x.r.sc,t:x.r.t,av:x.r.av,oo:x.r.oo,
-   C:x.r.C,S:x.r.S,shipu:x.q>0?x.ship/x.q:0}[sortK]:x[sortK]);
-  const p=g(a),r2=g(b);return ((p==null)-(r2==null))||((p>r2?1:p<r2?-1:0)*sortD);});
  const PS=+$("#ps").value, mx=Math.max(1,Math.ceil(rs.length/PS)); page=Math.min(page,mx-1);
  $("#pi").textContent="page "+(page+1)+" / "+mx;
  $("#cnt").textContent="— "+rs.length.toLocaleString()+" SKUs in range";
@@ -376,7 +392,7 @@ function stamp(){const d=$("#d1").value,e=$("#d2").value;return d+"_to_"+e;}
 
 // one row per SKU — the sales record as you see it
 $("#x").onclick=()=>{
- const rs=rows();
+ const rs=sortRows(rows());
  const head=["SKU","Sub category","Listing type","Inventory on hand","Coming stock","Due date","Sold qty",
   "Sales $","Item avg cost","Real S&H total","Est S&H /unit","Item cost total","12% fee","AD cost",
   "Total profit","Total margin %","Return $","Return cost $","Return qty","Return rate %"];
@@ -390,7 +406,7 @@ $("#x").onclick=()=>{
 
 // one row per SKU PER SELLER ACCOUNT — the channel record for every filtered SKU
 $("#xc").onclick=()=>{
- const ms=rangeMonths()||[], rs=rows();
+ const ms=rangeMonths()||[], rs=sortRows(rows());
  const head=["SKU","Sub category","Listing type","Seller account","Marketplace fee applies",
   "Sold qty","Sales $","Item avg cost","Item cost total","Shipping $","12% fee","AD cost",
   "Return $","Return cost $","Return qty","Total profit","Profit %",
@@ -564,21 +580,35 @@ function boot(payload){
  // run the SAME script the internal portal uses, now that the data is in place
  new Function(document.getElementById("portalcode").textContent)();
 }
+// "Failed to fetch" is what a browser says for anything that never left the
+// machine - dropped wifi, VPN hiccup, a proxy in the way. Say that in English.
+function say(e){
+ const m=String(e&&e.message||e);
+ return /failed to fetch|networkerror|load failed/i.test(m)
+   ? "Could not reach the server. Check your connection and press Sign in again."
+   : m;
+}
+function setBtn(txt,busy){                 // the gate is gone after boot() - guard it
+ const b=$$("#go"); if(!b)return;
+ b.textContent=txt; b.disabled=!!busy;
+}
 async function start(showGate){
- try{ const p=await loadData(); boot(p); }
- catch(e){ if(showGate){$$("#er").textContent=e.message;} else {
-   $$("#gate").style.visibility="visible"; } }
+ try{
+   setBtn("Loading data...",true);         // 4 MB takes a moment; don't look frozen
+   const p=await loadData(); boot(p);
+ }catch(e){
+   if(showGate){$$("#er").textContent=say(e);} else {$$("#gate").style.visibility="visible";}
+   throw e;
+ }
 }
 $$("#signout").onclick=()=>{store.clear();location.reload();};
 $$("#lf").onsubmit=async ev=>{
- ev.preventDefault(); $$("#er").textContent=""; $$("#go").disabled=true;
- $$("#go").textContent="Signing in...";
+ ev.preventDefault(); $$("#er").textContent=""; setBtn("Signing in...",true);
  try{ await signIn($$("#em").value.trim(),$$("#pw").value); await start(true); }
- catch(e){ $$("#er").textContent=e.message; }
- finally{ $$("#go").disabled=false; $$("#go").textContent="Sign in"; }
+ catch(e){ $$("#er").textContent=say(e); setBtn("Sign in",false); }
 };
 // already signed in from last time? go straight in.
-(async()=>{ if(store.get()){ await refresh(); await start(false); } })();
+(async()=>{ if(store.get()){ try{ await refresh(); await start(false); }catch(e){} } })();
 </script>
 </body>
 </html>
