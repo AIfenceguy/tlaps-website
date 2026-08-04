@@ -198,16 +198,31 @@ function rangeMonths(){
  const set=[]; for(let i=lo;i<=hi;i++)set.push(String(i));
  return set;
 }
-function setRange(monthsBack){
+// format a LOCAL date as yyyy-mm-dd. Do not use toISOString here: it converts to
+// UTC first, which in a timezone behind UTC turns "1st of the month" into the last
+// day of the month before.
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+
+            String(d.getDate()).padStart(2,"0");
+function setRange(monthsBack){          // N months back, up to today
  const b=new Date(TODAY), a=new Date(TODAY);
  a.setMonth(a.getMonth()-monthsBack+1); a.setDate(1);
- $("#d1").value=a.toISOString().slice(0,10); $("#d2").value=b.toISOString().slice(0,10);
+ $("#d1").value=iso(a); $("#d2").value=iso(b);
 }
-[["Last 24 months",24],["Last 12 months",12],["Last 6 months",6],["Last 3 months",3],["This month",1]]
- .forEach(([lab,n],i)=>{const b=document.createElement("button");b.textContent=lab;b.dataset.n=n;
-  if(n===24)b.className="on";
+function setLastMonth(){                // the PREVIOUS calendar month, complete
+ const t=new Date(TODAY);
+ // day 0 of this month = the last day of last month
+ $("#d1").value=iso(new Date(t.getFullYear(), t.getMonth()-1, 1));
+ $("#d2").value=iso(new Date(t.getFullYear(), t.getMonth(), 0));
+}
+// Data is kept in MONTHLY buckets, so "Last month" is the previous calendar month
+// in full, not a rolling 30 days — a 30-day window would need daily buckets.
+[["Last 24 months",()=>setRange(24)],["Last 12 months",()=>setRange(12)],
+ ["Last 6 months",()=>setRange(6)],["Last 3 months",()=>setRange(3)],
+ ["Last month",setLastMonth],["This month",()=>setRange(1)]]
+ .forEach(([lab,fn])=>{const b=document.createElement("button");b.textContent=lab;
+  if(lab==="Last 24 months")b.className="on";
   b.onclick=()=>{document.querySelectorAll("#quick button").forEach(x=>x.className="");
-   b.className="on";setRange(n);recalc();};$("#quick").appendChild(b);});
+   b.className="on";fn();recalc();};$("#quick").appendChild(b);});
 setRange(24);
 
 // ---- totals for one SKU over the selected months ----
@@ -570,7 +585,7 @@ $("#sub").textContent="Built "+META.built+" · default view = last 24 months · 
  "profit = sales + freight billed − 12% fee − AD − shipping − item cost, then minus return cost · no overhead · JL retail side";
 $("#defs").innerHTML=[
  ["Where the numbers come from","Sales, returns and shipping are read straight from the ERP invoice history — nothing is typed in or estimated after the fact. Listing prices come from ChannelAdvisor's API each morning. Item costs come live from the ERP. The page rebuilds every day at 6:30am on JLServer; the timestamp at the top tells you when. If that date is not today, something upstream stopped and every number below is stale."],
- ["Date range","Everything — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. Default is the last 24 months. The stock figures are the exception: they always show TODAY, because there is no such thing as last March's free stock."],
+ ["Date range","Everything — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. &lsquo;Last month&rsquo; means the previous calendar month complete, not a rolling 30 days. Default is the last 24 months. The stock figures are the exception: they always show TODAY, because there is no such thing as last March's free stock."],
  ["Item cost","Whichever of the ERP's three cost fields is actually filled in, in this order: average cost (the real landed cost), then current cost, then standard cost. 999.00 is a data-entry placeholder and is ignored, as is a zero — a blank cost is missing information, not a free item. Defect-grade SKUs ending -D1, -D2 and so on are customer returns re-sold as-is; the ERP holds no cost for them because the original unit was already written off, so they are booked at a nominal $1. Every SKU that sold in the last 24 months now carries a cost, so no row is left without a profit figure."],
  ["Freight billed to customer","When a dropship or wholesale customer asks US to ship on our carrier account, the ERP Freight field carries what we billed them for it. A BLANK Freight field means they shipped on their own account, so we have no carrier cost at all and none is charged. Previously we deducted the carrier cost on the billed orders but never counted their payment — a one-sided entry worth $331,937 over 24 months, $300,914 of it dropship, which made those channels read as loss-making on every order. Freight billed is now added back and shown on its own line so you can see both halves."],
  ["Total profit / margin","Sales + freight billed − item cost − shipping − 12% marketplace fee − ad spend − return cost. No overhead, no labour, no rent — this is contribution margin, not net profit. The 12% and the ad slider are charged on marketplace sales only. Return COST is the real loss (labels, product never scanned back, no-item refunds), not the refunded amount — most returned units go back into sellable stock, so counting the refund would overstate the damage."],
