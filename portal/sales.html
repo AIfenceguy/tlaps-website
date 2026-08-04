@@ -27,6 +27,10 @@ h3{font-size:14px;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.5px
 #nla label{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12px;
      text-transform:none;letter-spacing:0;color:#0b0b0b;white-space:nowrap;cursor:pointer}
 #nla input[type=checkbox]{width:auto;margin:0;flex:0 0 auto}
+#nlcb{background:#fafbfc;border:1px solid #c9ced6;border-radius:6px;padding:6px 9px}
+#nlcb label{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12px;
+     text-transform:none;letter-spacing:0;color:#0b0b0b;cursor:pointer}
+#nlcb input[type=checkbox]{width:auto;margin:0;flex:0 0 auto}
 .qb{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
 .qb button{padding:3px 9px;border:1px solid #c9ced6;border-radius:12px;background:#fff;cursor:pointer;font-size:11.5px}
 .qb button.on{background:#3d4b5c;color:#fff;border-color:#3d4b5c}
@@ -152,6 +156,9 @@ button.xls:hover{background:#175937;border-color:#175937}
   <div><label>SKU does NOT contain</label><input type="text" id="nlqx" placeholder="e.g. -D1,-D2,-D3"></div>
   <div><label>ERP note</label>
     <input type="text" id="nlnt" list="ntlist" placeholder="e.g. disc, clear, stop"></div>
+  <div class="wide"><label>Sold inside combos</label>
+   <div id="nlcb"><label><input type="checkbox" id="nlhide" checked>
+    hide parts that sell inside a live combo, or are marked "combo only"</label></div></div>
   <div class="wide"><label>Stock depth</label><select id="nlsp">
     <option value="ok" selected>enough to list — free stock ≥ 4-day safety point</option>
     <option value="">show everything, including too-thin-to-list</option>
@@ -447,6 +454,8 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
  const sel=()=>[...document.querySelectorAll(".nlacct:checked")].map(x=>x.value);
  const trm=s=>String(s||"").toUpperCase().split(",").map(x=>x.trim()).filter(Boolean);
  function why(r){
+  if((r.kv||0)>0) return "sells inside "+r.kv+" live combo listing"+(r.kv>1?"s":"")+" — not broken";
+  if(r.co)        return "marked COMBO ONLY in the ERP — never sold on its own";
   if(r.u24===0&&!r.ls) return r.dk>0?"listed once, all turned OFF — never sold":"NEW item — never listed (photos/listing not created?)";
   if(r.u24===0)        return r.dk>0?"old item, listings all OFF":"old item — listings gone";
   return r.dk>0?"WAS SELLING — listings all turned OFF (fix!)":"WAS SELLING — listings gone/deleted (fix!)";
@@ -455,6 +464,8 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
  // its safety point is one the team's own -2000 rule would keep dark anyway, so
  // flagging it as a missing listing is a false alarm. Never-sold items have sp=0.
  const deep=r=>r.av>=(r.sp||0);
+ // kv = how many LIVE combo listings contain this part; co = ERP note says "combo only"
+ const inCombo=r=>(r.kv||0)>0||!!r.co;
  // click-to-sort, same behaviour as the sales record above: first click on a
  // column sorts it high-to-low, clicking the same one again flips it. Default
  // stays biggest stock value first, which is the order this list is useful in.
@@ -463,7 +474,8 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
   {k:"t",  h:"Type"},             {k:"av", h:"Free stock",      n:1},
   {k:"sp", h:"4-day safety pt",   n:1},
   {k:"val",h:"Stock value $",     n:1}, {k:"ls", h:"Last sold"},
-  {k:"u24",h:"Sold 24mo",         n:1}, {k:"lv", h:"Live on"},
+  {k:"u24",h:"Sold 24mo",         n:1}, {k:"kv", h:"In live combos", n:1},
+  {k:"lv", h:"Live on"},
   {k:"w",  h:"Why (best guess)"}];
  let nlK="val", nlD=-1;
  function nlSort(rs){
@@ -478,11 +490,14 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
  }
  function flt(){
   const a=sel(),ty=$("#nlty").value,t=$("#nlt").value,sc=$("#nlsc").value,sp=$("#nlsp").value;
-  const nt=$("#nlnt").value;
+  const nt=$("#nlnt").value, hide=$("#nlhide").checked;
   const qi=trm($("#nlq").value),qe=trm($("#nlqx").value);
   return NL.filter(r=>{
    const lv=r.lv||[],u=r.s.toUpperCase();
    const hit=a.length?a.every(x=>lv.indexOf(x)<0):lv.length===0;
+   // a part that sells inside a live combo, or is flagged "combo only" in the ERP,
+   // is NOT a broken listing - it is doing its job. Biggest false-alarm source here.
+   if(hide&&inCombo(r))return false;
    return hit&&(!ty||r.t===ty)&&(!sc||r.sc===sc)&&
     (!nt||noteMatch(r,nt))&&
     (!sp||(sp==="ok"?deep(r):!deep(r)))&&
@@ -495,14 +510,17 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
   const sgv=sg.reduce((s,r)=>s+r.val,0), sgu=sg.reduce((s,r)=>s+r.av,0);
   const ktv=kt.reduce((s,r)=>s+r.val,0);
   const mode=$("#nlsp").value;
-  const hidden=NL.filter(r=>{const lv=r.lv||[];
-   return (a.length?a.every(x=>lv.indexOf(x)<0):lv.length===0)&&!deep(r);}).length;
+  const base=NL.filter(r=>{const lv=r.lv||[];
+   return (a.length?a.every(x=>lv.indexOf(x)<0):lv.length===0)&&r.t!=="combo";});
+  const hidden=base.filter(r=>!deep(r)).length;
+  const hidCombo=$("#nlhide").checked?base.filter(r=>inCombo(r)&&deep(r)).length:0;
   $("#nlsum").textContent=
    sg.length.toLocaleString()+" single items ("+sgu.toLocaleString()+" units, $"+Math.round(sgv).toLocaleString()+" of real stock) "+
    (a.length?("are NOT live on "+a.join(" + ")):"have ZERO live listings anywhere")+
    (kt.length?" — plus "+kt.length.toLocaleString()+" combos buildable from that same stock ($"+Math.round(ktv).toLocaleString()+", not added to the total)":"")+
    ". Stock qty is FREE stock: Zone-1 only, minus units already committed to open orders."+
    (mode==="ok"&&hidden?" "+hidden.toLocaleString()+" more are hidden because their free stock is under the 4-day safety point — the team keeps those dark on purpose.":"")+
+   (hidCombo?" "+hidCombo.toLocaleString()+" more are hidden because they sell inside live combos or are marked combo-only — untick the box to see them.":"")+
    " 'Last sold' tells you a broken listing from a new item never listed.";
   let h='<table><thead><tr>'+NLCOLS.map(c=>'<th class="'+(c.n?'num':'')+'" data-nk="'+c.k+'">'+
     c.h+(nlK===c.k?(nlD<0?' ▼':' ▲'):'')+'</th>').join("")+'</tr></thead><tbody>';
@@ -512,7 +530,9 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
     '<td class="num">'+(thin?'<span class="neg">'+r.av.toLocaleString()+'</span>':r.av.toLocaleString())+'</td>'+
     '<td class="num">'+(r.sp||0).toLocaleString()+'</td>'+
     '<td class="num">'+(r.val?'$'+r.val.toLocaleString():'—')+'</td><td>'+(r.ls||'<span class="neg">never</span>')+'</td>'+
-    '<td class="num">'+(r.u24||"")+'</td><td style="white-space:normal;max-width:210px;font-size:11px;color:#52514e">'+
+    '<td class="num">'+(r.u24||"")+'</td>'+
+    '<td class="num">'+(inCombo(r)?'<span class="pos">'+(r.kv||0)+(r.co?' · combo only':'')+'</span>':'')+'</td>'+
+    '<td style="white-space:normal;max-width:210px;font-size:11px;color:#52514e">'+
     ((r.lv&&r.lv.length)?r.lv.join(", "):'<span class="neg">nowhere</span>')+'</td>'+
     '<td>'+(w.indexOf("fix!")>=0?'<span class="neg">'+w+'</span>':w)+'</td></tr>';});
   $("#nltbl").innerHTML=h+'</tbody></table>';
@@ -526,14 +546,15 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
   if(ev.target.classList.contains("nlacct")&&ev.target.checked)$("#nlnone").checked=false;
   if(!sel().length)$("#nlnone").checked=true;
   draw();});
- ["nlty","nlt","nlsc","nlsp"].forEach(id=>$("#"+id).onchange=draw);
+ ["nlty","nlt","nlsc","nlsp","nlhide"].forEach(id=>$("#"+id).onchange=draw);
  ["nlq","nlqx","nlnt"].forEach(id=>$("#"+id).oninput=draw);
  $("#nlx").onclick=()=>{
   const rs=nlSort(flt());        // download follows whatever you sorted on screen
   const lines=[["SKU","Sub category","Type","Free stock","4-day safety point",
-   "Deep enough to list","Stock value $","Last sold","Sold 24mo","Live on","Why"].join(",")]
+   "Deep enough to list","Stock value $","Last sold","Sold 24mo","In live combos","Combo only","Live on","Why"].join(",")]
    .concat(rs.map(r=>[r.s,r.sc||"",r.t||"",r.av,r.sp||0,deep(r)?"yes":"no",r.val,
-    r.ls||"never",r.u24,(r.lv||[]).join(" | ")||"nowhere",why(r)].map(esc).join(",")));
+    r.ls||"never",r.u24,r.kv||0,r.co?"yes":"no",
+    (r.lv||[]).join(" | ")||"nowhere",why(r)].map(esc).join(",")));
   save("in_stock_not_listed_"+META.today+".csv",lines);};
  draw();
 })();
@@ -541,17 +562,23 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
 $("#sub").textContent="Built "+META.built+" · default view = last 24 months · every number recalculates for the date range you pick · "+
  "profit = sales − 12% fee − AD − shipping − item cost, then minus return credits · no overhead · JL retail side";
 $("#defs").innerHTML=[
- ["Date range","Everything on this page — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. Default is the last 24 months."],
- ["Summary box","Totals for every SKU that matches the filters in the chosen range. Item cost = average cost × qty sold. Transaction 12% and AD are charged on marketplace sales only. RMA = credited returns tied to sales in the range."],
- ["Inventory on hand","FREE sellable stock right now: good Zone-1 units minus anything committed to open sales orders. Combos = how many complete kits the scarcest part allows."],
- ["Coming stock / Due date","Units on an OPEN purchase order — a container already on the water. We cut the PO when the factory says the goods are at the port in China, and the PO date is when we expect to receive it, normally about three weeks out. Only POs still marked Open count: Completed means received, Voided means cancelled. Due date is that expected date; a red date means the container is past due. POs more than 90 days past due are treated as dead and left out entirely. Treat the quantity as about 95% firm — when the container is actually counted in, roughly one line in thirty comes in short or over."],
- ["Real S&H /unit","What UPS/FedEx actually charged, from their invoices, divided by units sold in the range. Estimate is used where no carrier record matched."],
- ["Total profit / margin","Sales − 12% fee − AD − shipping − item cost − return credits, for the chosen range. Margin = that profit ÷ sales."],
- ["Return $ / rate","Credited returns (CCNOTE) tied to sales in the range. Rate = returned units ÷ units sold."],
- ["Channel record","Pick any SKU above. EVERY seller account gets a column, whether it sold the item or not — a zero tells you who is not selling it. Accounts run left to right from the biggest seller of that SKU to the smallest; the ones sitting at zero stay in overall account-size order. One column per seller account and marketplace — Topline eBay, Topline Amazon, Champs eBay, Champs Amazon, GTRacers, Streetune, Proexhaust, Vision-Technology — plus the non-marketplace routes: I3 Vendor (what we sell to the sister company for Amazon Vendor Central), Dropship, Wholesale and Website. Every line is that account's own number for the chosen date range, not a share-out of the SKU total. Total profit = that account's sales − item cost − shipping − marketplace fee − return cost. The 12% + ad fee is charged on the marketplace accounts only; I3, wholesale, dropship and website do not pay it. The last two rows are the account's CURRENT live listing price and the margin one unit would earn at that price."],
- ["Which marketplace","Amazon orders are identified by their own 3-7-7 order number. Everything else ChannelAdvisor sends us carries a ChannelAdvisor order id, which we read as eBay — so the small number of Walmart orders currently sit inside that account's eBay column."],
- ["Free stock vs 4-day safety point","Stock qty in this section is FREE stock: Zone-1 (the only sellable location) minus every unit already committed to an open sales order. The safety point is 4 × the item's average daily units over the last 90 days — the same rule the team uses when it pushes qty −2000 to go dark. By default this section only shows items whose free stock is AT or ABOVE their safety point, because anything thinner is deliberately dark, not a broken listing. Never-sold items have a safety point of 0 and always appear. Switch the 'Stock depth' box to see the thin ones or everything."],
- ["In stock but NOT LIVE","Items with sellable stock that no marketplace can sell right now. Leave the boxes unticked to see items live NOWHERE, or tick accounts to see what is missing from those specific accounts (the 'Live on' column shows where an item IS listed, since some are deliberately one-account items). 'Last sold = never' means the listing was never created; a date means it used to sell and the listing is now off or gone. Combo stock is reported separately because it shares the same component units and is not added to the singles total. This section always shows stock as of today, not the date range."],
+ ["Where the numbers come from","Sales, returns and shipping are read straight from the ERP invoice history — nothing is typed in or estimated after the fact. Listing prices come from ChannelAdvisor's API each morning. Item costs come live from the ERP. The page rebuilds every day at 6:30am on JLServer; the timestamp at the top tells you when. If that date is not today, something upstream stopped and every number below is stale."],
+ ["Date range","Everything — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. Default is the last 24 months. The stock figures are the exception: they always show TODAY, because there is no such thing as last March's free stock."],
+ ["Item cost","Whichever of the ERP's three cost fields is actually filled in, in this order: average cost (the real landed cost), then current cost, then standard cost. 999.00 is a data-entry placeholder and is ignored, as is a zero — a blank cost is missing information, not a free item. Defect-grade SKUs ending -D1, -D2 and so on are customer returns re-sold as-is; the ERP holds no cost for them because the original unit was already written off, so they are booked at a nominal $1. Every SKU that sold in the last 24 months now carries a cost, so no row is left without a profit figure."],
+ ["Total profit / margin","Sales − item cost − shipping − 12% marketplace fee − ad spend − return cost. No overhead, no labour, no rent — this is contribution margin, not net profit. The 12% and the ad slider are charged on marketplace sales only. Return COST is the real loss (labels, product never scanned back, no-item refunds), not the refunded amount — most returned units go back into sellable stock, so counting the refund would overstate the damage."],
+ ["Summary box","Totals for every SKU matching the filters, over the chosen range. Item cost = cost × units sold. RMA figures cover credited returns tied to sales in that range."],
+ ["Return rate","Units returned ÷ units sold. Over 24 months that runs about 5.6%. Quote THIS number to factories, because it counts boxes coming back regardless of price. The dollar impact is smaller — return cost is about 2.8% of sales — because returns skew toward cheaper items."],
+ ["Inventory on hand","FREE sellable stock right now: good Zone-1 units minus anything already committed to an open sales order. Zones 2-9 hold returns and defective product and are excluded. A combo shows how many complete kits the scarcest component allows."],
+ ["Coming stock / Due date","Units on an OPEN purchase order — a container already on the water. The PO is cut when the factory says goods are at the port in China, and the PO date is when we expect to receive it, normally about three weeks out. Only POs still marked Open count: Completed means received, Voided means cancelled. A red due date is past due. POs more than 90 days past due are treated as dead and left out. Treat the quantity as roughly 95% firm — about one line in thirty arrives short or over."],
+ ["Real S&H /unit","What UPS and FedEx actually charged, from their own invoices, divided by units sold in the range. About 92% of shipped units match to a real carrier charge; the ERP estimate fills the rest. Across the whole catalogue the real charges run about a third BELOW the ERP estimate, so this makes profit look better than the estimate would, not worse. Watch for the opposite on low-volume items: one oversize freight shipment landing on a month that sold a single unit can swamp that SKU."],
+ ["Channel record","Pick any SKU above. EVERY seller account gets a column, whether it sold the item or not — a zero tells you who is NOT selling it. Accounts run left to right from the biggest seller of that SKU down; those at zero stay in overall account-size order. Alongside the marketplace accounts are the non-marketplace routes: I3 Vendor (what we sell the sister company for Amazon Vendor Central), Dropship, Wholesale and Website. Every line is that account's own number, not a share-out of the SKU total, and the columns re-add to the total exactly."],
+ ["Listing price &amp; set profit margin","The last two rows of the channel record are forward-looking, not history: today's live listing price on that account, and the margin ONE unit would earn at that price. That margin uses the ESTIMATED shipping cost, not the real carrier charge — a listing that has not sold yet has no shipments to average. Compare it against the Real S&amp;H column in the sales record to see whether the estimate is holding up."],
+ ["Which marketplace","Amazon orders are identified by their own 3-7-7 order number. Everything else ChannelAdvisor sends carries a ChannelAdvisor order id, which we read as eBay — so the small number of Walmart orders currently sit inside that account's eBay column."],
+ ["ERP note","The merchandising team's own note on the item — discontinue, clearance, list, stop ad, no ad, combo only, and so on. It is slash-delimited, so type any part of a tag and it filters live: 'disc' catches every discontinue variant, 'left' catches '3 left only'. Commas mean OR, a leading minus excludes ('-disc'), and 'none' finds items with no note. Red means discontinue, stop ad or no ad — those are dark on purpose."],
+ ["Free stock vs 4-day safety point","The safety point is 4 × the item's average daily sales over the last 90 days — the same rule the team uses when it pushes a listing dark. Below it, an item is deliberately dark, not broken, so this section hides those by default. Never-sold items have a safety point of 0 and always appear."],
+ ["Sold inside combos","A part can be invisible as a single listing and still be selling hard as a component. 'In live combos' counts the live combo listings that contain it, and the ERP note often says 'combo only' outright. Those are working as intended, so they are hidden by default — untick the box to see them. Leaving them in overstated this list by 287 items and $393,320 of stock."],
+ ["In stock but NOT LIVE","What is left after those two filters: items with real sellable stock, deep enough to list, not selling inside a combo, that no marketplace can sell right now. 'Last sold = never' means the listing was never created; a date means it used to sell and the listing is now off or gone. Tick account boxes to ask a narrower question — what is missing from Champs Amazon specifically — since some items are one-account items on purpose. Combo stock is reported separately because it shares the same component units and is not added to the singles total."],
+ ["Sorting and downloads","Click any column header to sort; click again to reverse. Both downloads follow whatever you have sorted and filtered on screen, and both contain the WHOLE filtered set, not just the visible page. 'Download SKU list' gives one row per SKU; 'Download by seller account' gives one row per SKU per account. The file name records the date range you exported."],
 ].map(d=>'<tr><td>'+d[0]+'</td><td>'+d[1]+'</td></tr>').join("");
 render();
 </script>
