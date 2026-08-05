@@ -195,7 +195,7 @@ button.xls:hover{background:#175937;border-color:#175937}
 <script type="text/plain" id="portalcode">
 const R=window.__R;
 const NL=window.__NL;
-const FN=/*__FUNNEL__*/[];
+const FN=window.__FN||[];
 const META=window.__META;
 const $=s=>document.querySelector(s);
 const money=v=>(v==null||isNaN(v))?"—":(v<0?"-$":"$")+Math.abs(Math.round(v)).toLocaleString();
@@ -750,6 +750,7 @@ async function loadData(){
 
 function boot(payload){
  window.__R=payload.rows||[]; window.__NL=payload.notlive||[]; window.__META=payload.meta||{};
+ window.__FN=payload.funnel||[];
  $$("#gate").remove(); $$("#signout").hidden=false;
  // run the SAME script the internal portal uses, now that the data is in place
  new Function(document.getElementById("portalcode").textContent)();
