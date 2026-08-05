@@ -139,6 +139,23 @@ button.xls:hover{background:#175937;border-color:#175937}
 <h3>Channel record</h3>
 <div class="card chwrap" id="chbox"><p class="note">Click a SKU above to see how it sells on each account.</p></div>
 
+<!-- ============ MARKETPLACE FUNNEL ============ -->
+<h3>Marketplace funnel &mdash; is it not SEEN, or seen and not BOUGHT?</h3>
+<div class="card">
+ <p class="note" id="fnsum"></p>
+ <div class="kpis" id="fnkpi" style="margin-bottom:8px"></div>
+ <div class="flt" style="margin-bottom:8px">
+  <div><label>Marketplace</label><select id="fnm">
+    <option value="">Amazon + eBay</option><option>Amazon</option><option>eBay</option></select></div>
+  <div><label>Verdict</label><select id="fnv"><option value="">all</option></select></div>
+  <div class="wide"><label>Search SKU / title / id</label>
+    <input type="text" id="fnq" placeholder="e.g. BGHD, tacoma, B07M"></div>
+ </div>
+ <button class="xls" id="fnx">Download what&rsquo;s shown (Excel)</button>
+ <span class="note">top 300 by traffic shown &middot; the download has everything filtered</span>
+ <div class="scroll" style="max-height:46vh;margin-top:8px" id="fntbl"></div>
+</div>
+
 <!-- ============ IN STOCK BUT NOT LIVE ============ -->
 <h3>⚠ In stock but NOT LIVE — new items never listed &amp; broken listings</h3>
 <div class="card">
@@ -178,6 +195,7 @@ button.xls:hover{background:#175937;border-color:#175937}
 <script type="text/plain" id="portalcode">
 const R=window.__R;
 const NL=window.__NL;
+const FN=/*__FUNNEL__*/[];
 const META=window.__META;
 const $=s=>document.querySelector(s);
 const money=v=>(v==null||isNaN(v))?"—":(v<0?"-$":"$")+Math.abs(Math.round(v)).toLocaleString();
@@ -590,6 +608,78 @@ META.channels.forEach(c=>{const o=document.createElement("option");o.value=c;o.t
 
 $("#sub").textContent="Built "+META.built+" · default view = last 24 months · every number recalculates for the date range you pick · "+
  "profit = sales + freight billed − 12% fee − AD − shipping − item cost, then minus return cost · no overhead · JL retail side";
+// ---- MARKETPLACE FUNNEL ----
+// Amazon and eBay do NOT measure the same funnel: Amazon publishes no organic
+// impression count, eBay does. So the metrics stay on each marketplace's own
+// terms and only the VERDICT is comparable.
+(function(){
+ if(!FN.length){$("#fnsum").textContent=
+   "No marketplace traffic loaded yet.";return;}
+ const VERD=["HEALTHY","SEEN, NOT BOUGHT","NOT CLICKED","LOSING BUY BOX","NOT SEEN"];
+ VERD.forEach(v=>{if(FN.some(r=>r.v===v)){
+   const o=document.createElement("option");o.value=v;o.textContent=v;$("#fnv").appendChild(o);}});
+ const COLOUR={"HEALTHY":"pos","SEEN, NOT BOUGHT":"neg","NOT CLICKED":"neg",
+               "LOSING BUY BOX":"neg","NOT SEEN":""};
+ let fk="view", fd=-1;
+ const COLS=[
+  {k:"m",   h:"Market",    f:r=>r.m},
+  {k:"k",   h:"SKU / listing", f:r=>r.k||r.t||r.id},
+  {k:"imp", h:"Impressions", n:1, f:r=>r.imp==null?"—":fmt(r.imp)},
+  {k:"view",h:"Views",      n:1, f:r=>fmt(r.view)},
+  {k:"ctr", h:"Click rate", n:1, f:r=>r.ctr==null?"—":r.ctr.toFixed(1)+"%"},
+  {k:"u",   h:"Units",      n:1, f:r=>r.u?fmt(r.u):""},
+  {k:"cv",  h:"Conversion", n:1, f:r=>r.cv?r.cv.toFixed(1)+"%":"0%"},
+  {k:"bb",  h:"Buy box",    n:1, f:r=>r.bb==null?"—":
+      '<span class="'+(r.bb<50?"neg":"")+'">'+r.bb+"%</span>"},
+  {k:"ad",  h:"Promoted",   f:r=>r.ad?"yes":""},
+  {k:"v",   h:"Verdict",    f:r=>'<span class="'+(COLOUR[r.v]||"")+'">'+r.v+"</span>"},
+ ];
+ const flt=()=>{const m=$("#fnm").value,v=$("#fnv").value,
+   q=$("#fnq").value.trim().toUpperCase();
+  return FN.filter(r=>(!m||r.m===m)&&(!v||r.v===v)&&
+   (!q||((r.k||"")+(r.t||"")+r.id).toUpperCase().includes(q)));};
+ function draw(){
+  const rs=flt();
+  const az=rs.filter(r=>r.m==="Amazon"), eb=rs.filter(r=>r.m==="eBay");
+  const sum=(a,f)=>a.reduce((s,r)=>s+(f(r)||0),0);
+  const tiles=[];
+  if(az.length)tiles.push(["Amazon sessions",fmt(sum(az,r=>r.view))],
+                          ["Amazon units",fmt(sum(az,r=>r.u))],
+                          ["Amazon conversion",(100*sum(az,r=>r.u)/Math.max(sum(az,r=>r.view),1)).toFixed(2)+"%"]);
+  if(eb.length)tiles.push(["eBay impressions",fmt(sum(eb,r=>r.imp))],
+                          ["eBay views",fmt(sum(eb,r=>r.view))],
+                          ["eBay units",fmt(sum(eb,r=>r.u))],
+                          ["eBay click rate",(100*sum(eb,r=>r.view)/Math.max(sum(eb,r=>r.imp),1)).toFixed(2)+"%"]);
+  $("#fnkpi").innerHTML=tiles.map(t=>'<div class="kpi"><div class="k">'+t[0]+
+    '</div><div class="v">'+t[1]+"</div></div>").join("");
+  const bad=rs.filter(r=>r.v==="SEEN, NOT BOUGHT"||r.v==="NOT CLICKED"||r.v==="LOSING BUY BOX");
+  $("#fnsum").textContent=rs.length.toLocaleString()+" listings with traffic. "+
+    bad.length.toLocaleString()+" are getting attention and not converting it — "+
+    "those are the ones worth a decision. Amazon measures sessions to sale; eBay "+
+    "measures impressions to click to sale, so the two are shown on their own terms.";
+  const srt=rs.slice().sort((a,b)=>{const g=r=>r[fk];
+    const p=g(a),q2=g(b);return ((p==null)-(q2==null))||((p>q2?1:p<q2?-1:0)*fd);});
+  let h='<table><thead><tr>'+COLS.map(c=>'<th class="'+(c.n?"num":"")+'" data-fk="'+c.k+
+    '">'+c.h+(fk===c.k?(fd<0?" ▼":" ▲"):"")+"</th>").join("")+"</tr></thead><tbody>";
+  srt.slice(0,300).forEach(r=>{h+="<tr>"+COLS.map(c=>'<td class="'+(c.n?"num":"")+
+    '">'+c.f(r)+"</td>").join("")+"</tr>";});
+  $("#fntbl").innerHTML=h+"</tbody></table>";
+  document.querySelectorAll("#fntbl th[data-fk]").forEach(th=>th.onclick=()=>{
+    if(fk===th.dataset.fk)fd*=-1;else{fk=th.dataset.fk;fd=-1;}draw();});
+ }
+ ["fnm","fnv"].forEach(id=>$("#"+id).onchange=draw);
+ $("#fnq").oninput=draw;
+ $("#fnx").onclick=()=>{
+  const rs=flt();
+  const head=["Marketplace","SKU or listing","Listing id","Impressions","Views",
+              "Click rate %","Units","Conversion %","Buy box %","Promoted","Verdict"];
+  save("marketplace_funnel_"+META.today+".csv",
+   [head.join(",")].concat(rs.map(r=>[r.m,r.k||r.t||"",r.id,r.imp==null?"":r.imp,
+    r.view,r.ctr==null?"":r.ctr,r.u,r.cv,r.bb==null?"":r.bb,r.ad?"yes":"",r.v]
+    .map(esc).join(","))));};
+ draw();
+})();
+
 $("#defs").innerHTML=[
  ["Where the numbers come from","Sales, returns and shipping are read straight from the ERP invoice history — nothing is typed in or estimated after the fact. Listing prices come from ChannelAdvisor's API each morning. Item costs come live from the ERP. The page rebuilds every day at 6:30am on JLServer; the timestamp at the top tells you when. If that date is not today, something upstream stopped and every number below is stale."],
  ["Date range","Everything — the summary box, the sales record and the channel record — is totalled for the dates you choose. Data is kept by month, so ranges snap to whole months. &lsquo;Last month&rsquo; means the previous calendar month complete, not a rolling 30 days. Default is the last 24 months. The stock figures are the exception: they always show TODAY, because there is no such thing as last March's free stock."],
@@ -610,6 +700,7 @@ $("#defs").innerHTML=[
  ["Free stock vs 4-day safety point","The safety point is 4 × the item's average daily sales over the last 90 days — the same rule the team uses when it pushes a listing dark. Below it, an item is deliberately dark, not broken, so this section hides those by default. Never-sold items have a safety point of 0 and always appear."],
  ["Sold inside combos","A part can be invisible as a single listing and still be selling hard as a component. 'In live combos' counts the live combo listings that contain it, and the ERP note often says 'combo only' outright. Those are working as intended, so they are hidden by default — untick the box to see them. Leaving them in overstated this list by 287 items and $393,320 of stock."],
  ["In stock but NOT LIVE","What is left after those two filters: items with real sellable stock, deep enough to list, not selling inside a combo, that no marketplace can sell right now. 'Last sold = never' means the listing was never created; a date means it used to sell and the listing is now off or gone. Tick account boxes to ask a narrower question — what is missing from Champs Amazon specifically — since some items are one-account items on purpose. Combo stock is reported separately because it shares the same component units and is not added to the singles total."],
+ ["Marketplace funnel","The one thing the ERP cannot tell you: when something with stock is not selling, was it never SEEN, or was it seen and not BOUGHT? Those need opposite fixes and used to look identical from our side. Amazon reports sessions (visits to the listing) and the share that converted, plus what percentage of the time we held the buy box. eBay reports impressions (times we appeared in search), how many clicked through, and how many of those bought. The two marketplaces do NOT measure the same thing — Amazon publishes no organic impression count — so the numbers stay on their own terms and only the VERDICT is comparable. SEEN, NOT BOUGHT means real traffic arrived and nobody bought: price, photos, reviews or fitment. NOT CLICKED means we appear in eBay search and shoppers scroll past: thumbnail, title or the price showing in results. LOSING BUY BOX means another seller is winning our own Amazon listing. NOT SEEN means too little traffic to judge."],
  ["Sorting and downloads","Click any column header to sort; click again to reverse. Both downloads follow whatever you have sorted and filtered on screen, and both contain the WHOLE filtered set, not just the visible page. 'Download SKU list' gives one row per SKU; 'Download by seller account' gives one row per SKU per account. The file name records the date range you exported."],
 ].map(d=>'<tr><td>'+d[0]+'</td><td>'+d[1]+'</td></tr>').join("");
 render();
