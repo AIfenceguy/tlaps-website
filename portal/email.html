@@ -70,6 +70,11 @@
 
   .cmp { padding:12px; display:flex; flex-direction:column; gap:8px; }
   .cmp .rowx { display:flex; gap:8px; align-items:center; }
+  .cmp .rowx.hidden { display:none; }
+  .cmp .cc-toggle { flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+    color:var(--text-muted); background:#fff; border:1px solid var(--border); border-radius:5px; padding:6px 9px; cursor:pointer; }
+  .cmp .cc-toggle:hover { background:#eaf5ee; color:var(--green); }
+  .cmp .cc-toggle.on { background:#eaf5ee; color:var(--green); border-color:var(--green); }
   .cmp label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted); width:52px; flex-shrink:0; }
   .cmp select, .cmp input { flex:1; padding:7px 9px; border:1px solid var(--border); border-radius:5px; font:inherit; font-size:13px; }
   .cmp textarea { width:100%; min-height:170px; padding:10px; border:1px solid var(--border); border-radius:6px;
@@ -176,7 +181,9 @@
           <div class="cmp">
             <div class="money-banner" id="money-banner" style="display:none">💰 Money item — refund/return/payment decisions are yours. Nothing here moves money; email only.</div>
             <div class="rowx"><label>From</label><select id="c-from"><option value="">Connect Gmail to load send-as aliases…</option></select></div>
-            <div class="rowx"><label>To</label><input id="c-to" type="text" placeholder="recipient"></div>
+            <div class="rowx"><label>To</label><input id="c-to" type="text" placeholder="recipient"><button type="button" class="cc-toggle on" id="btn-cctoggle" title="Show or hide the Cc and Bcc fields">Cc/Bcc</button></div>
+            <div class="rowx" id="row-cc"><label>Cc</label><input id="c-cc" type="text" placeholder="visible to everyone — comma-separated"></div>
+            <div class="rowx" id="row-bcc"><label>Bcc</label><input id="c-bcc" type="text" placeholder="hidden from the other recipients — comma-separated"></div>
             <div class="rowx"><label>Subject</label><input id="c-subj" type="text"></div>
             <div class="draft-status" id="draft-status" style="display:none"></div>
             <textarea id="c-body" placeholder="Write here, or click 'Use as draft' on a Claude suggestion…"></textarea>
@@ -184,6 +191,7 @@
               <button class="btn btn-secondary" id="btn-usedraft">⬅ Use Claude's last draft</button>
               <button class="btn btn-secondary" id="btn-draftnow" title="Ask Claude for a fresh suggested reply">&#9998; Draft now</button>
               <button class="btn btn-ghost" id="btn-savedraft">Save draft</button>
+              <button class="btn btn-ghost" id="btn-fwd" title="Forward this whole thread to someone else">&#8618; Forward</button>
               <span class="spacer" style="flex:1"></span>
               <button class="btn-send" id="btn-send" disabled>Review &amp; Send</button>
             </div>
@@ -218,6 +226,8 @@
     <h4>Confirm send — this is the real thing</h4>
     <div class="kv"><b>From</b> <span id="m-from"></span></div>
     <div class="kv"><b>To</b> <span id="m-to"></span></div>
+    <div class="kv" id="m-cc-row"><b>Cc</b> <span id="m-cc"></span></div>
+    <div class="kv" id="m-bcc-row"><b>Bcc</b> <span id="m-bcc"></span></div>
     <div class="kv"><b>Subject</b> <span id="m-subj"></span></div>
     <div class="preview" id="m-body"></div>
     <div id="m-money" class="money-banner" style="display:none">💰 This thread involves money. Confirm you've made the refund/payment decision yourself.</div>
