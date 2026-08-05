@@ -531,7 +531,11 @@ async function openItem(id) {
 
   // composer prefill
   const senderEmail = ((sel.sender || '').match(/<([^>]+)>/) || [null, sel.sender])[1] || '';
+  fwdMode = false;
   $('c-to').value = senderEmail;
+  $('c-cc').value = sel.draft_cc || '';
+  $('c-bcc').value = sel.draft_bcc || '';
+  if (sel.draft_cc || sel.draft_bcc) setCcVisible(true);
   $('c-subj').value = /^re:/i.test(sel.subject || '') ? sel.subject : 'Re: ' + (sel.subject || '');
   $('c-body').value = sel.draft_body || '';
   // best-guess From: match account alias
@@ -875,13 +879,56 @@ async function removeVip(id) {
 }
 
 /* ================= SEND ================= */
+/* Forward mode. Set by the Forward button, cleared whenever a queue item is
+   opened or a message actually goes out. It changes two things: the message is
+   NOT threaded onto the original conversation, and the confirm modal says
+   "forward" so there is no chance of mistaking one for the other. */
+let fwdMode = false;
+
+function setCcVisible(on) {
+  $('row-cc').classList.toggle('hidden', !on);
+  $('row-bcc').classList.toggle('hidden', !on);
+  $('btn-cctoggle').classList.toggle('on', !!on);
+}
+
+/* Build a forward: quote the whole thread, blank the recipients, prefix Fwd:.
+   Nothing is sent — this only fills the composer, exactly like a reply draft. */
+function startForward() {
+  if (!sel) { toast('Open an email first', 'warning'); return; }
+  const msgs = sel.thread_id ? threadCache[sel.thread_id] : null;
+  const base = (sel.draft_subject || sel.subject || '').replace(/^\s*(re|fwd|fw)\s*:\s*/i, '');
+  let quoted;
+  if (msgs && msgs.length) {
+    quoted = msgs.map(m =>
+      `From: ${m.from}\nDate: ${m.date}\nTo: ${m.to}\nSubject: ${m.subject}\n\n${m.body}`
+    ).join('\n\n----------\n\n');
+  } else {
+    quoted = `From: ${sel.sender || ''}\nSubject: ${sel.subject || ''}\n\n${sel.snippet || ''}` +
+             (sel.gmail_link ? `\n\n(full message: ${sel.gmail_link})` : '');
+  }
+  fwdMode = true;
+  $('c-to').value = '';
+  $('c-cc').value = '';
+  $('c-bcc').value = '';
+  setCcVisible(true);
+  $('c-subj').value = 'Fwd: ' + base;
+  $('c-body').value = '\n\n---------- Forwarded message ----------\n' + quoted + '\n';
+  setDraftStatus('↪ Forward mode — add recipients above. This goes out as a new message, not as a reply on the thread.', 'ok');
+  $('c-to').focus();
+  $('btn-send').disabled = false;
+}
+
+
 function b64urlEncode(str) {
   return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-function buildRaw(from, to, subject, body, inReplyTo, references) {
+function buildRaw(from, to, cc, bcc, subject, body, inReplyTo, references) {
   const alias = sendAsList.find(a => a.sendAsEmail === from);
   const fromHdr = alias && alias.displayName ? `${alias.displayName} <${from}>` : from;
-  let h = `From: ${fromHdr}\r\nTo: ${to}\r\nSubject: ${subject}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: 8bit\r\n`;
+  let h = `From: ${fromHdr}\r\nTo: ${to}\r\n`;
+  if (cc && cc.trim())  h += `Cc: ${cc.trim()}\r\n`;
+  if (bcc && bcc.trim()) h += `Bcc: ${bcc.trim()}\r\n`;
+  h += `Subject: ${subject}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: 8bit\r\n`;
   if (inReplyTo) h += `In-Reply-To: ${inReplyTo}\r\n`;
   if (references) h += `References: ${references}\r\n`;
   return b64urlEncode(h + '\r\n' + body);
@@ -892,9 +939,17 @@ function openSendModal() {
   if (!$('c-from').value) { toast('Pick a From address (connect Gmail first)', 'warning'); return; }
   $('m-from').textContent = $('c-from').value;
   $('m-to').textContent = $('c-to').value;
+  const ccv = $('c-cc').value.trim(), bccv = $('c-bcc').value.trim();
+  $('m-cc').textContent = ccv;
+  $('m-bcc').textContent = bccv;
+  $('m-cc-row').style.display = ccv ? '' : 'none';
+  $('m-bcc-row').style.display = bccv ? '' : 'none';
   $('m-subj').textContent = $('c-subj').value;
   $('m-body').textContent = $('c-body').value;
   $('m-money').style.display = sel && sel.money_flag ? '' : 'none';
+  const mh = document.querySelector('#send-modal h4');
+  if (mh) mh.textContent = fwdMode ? 'Confirm forward — this is the real thing'
+                                   : 'Confirm send — this is the real thing';
   $('send-modal').classList.add('open');
 }
 
@@ -967,23 +1022,29 @@ async function reallySend() {
   $('m-confirm').disabled = true; $('m-confirm').textContent = 'Sending…';
   try {
     let inReplyTo = '', references = '';
-    if (sel && sel.thread_id && threadCache[sel.thread_id]) {
+    // A forward starts its own conversation: no In-Reply-To/References and no
+    // threadId, so it does not get stapled onto the original thread.
+    if (!fwdMode && sel && sel.thread_id && threadCache[sel.thread_id]) {
       const last = threadCache[sel.thread_id].slice(-1)[0];
       if (last && last.msgId) { inReplyTo = last.msgId; references = last.msgId; }
     }
-    const payload = { raw: buildRaw($('c-from').value, $('c-to').value.trim(), $('c-subj').value, $('c-body').value, inReplyTo, references) };
-    if (sel && sel.thread_id) payload.threadId = sel.thread_id;
+    const payload = { raw: buildRaw($('c-from').value, $('c-to').value.trim(), $('c-cc').value, $('c-bcc').value,
+                                    $('c-subj').value, $('c-body').value, inReplyTo, references) };
+    if (!fwdMode && sel && sel.thread_id) payload.threadId = sel.thread_id;
     await gm('messages/send', { method: 'POST', body: JSON.stringify(payload) });
     $('send-modal').classList.remove('open');
     // Sending never archives. The thread stays in the hub inbox until the user
     // presses Archive, so keeping a thread visible after replying is the default.
-    toast('Sent ✓ as ' + $('c-from').value + ' — use Archive when you want it out of the hub', 'success');
+    toast((fwdMode ? 'Forwarded ✓ as ' : 'Sent ✓ as ') + $('c-from').value + ' — use Archive when you want it out of the hub', 'success');
     if (sel) {
       await updateRow(sel.id, { status: 'sent', draft_from: $('c-from').value, draft_to: $('c-to').value,
+        draft_cc: $('c-cc').value.trim() || null, draft_bcc: $('c-bcc').value.trim() || null,
         draft_subject: $('c-subj').value, draft_body: $('c-body').value });
-      logAction('sent', { from_alias: $('c-from').value, to_addr: $('c-to').value,
+      logAction(fwdMode ? 'forwarded' : 'sent', { from_alias: $('c-from').value, to_addr: $('c-to').value,
+        cc_addr: $('c-cc').value.trim(), bcc_count: $('c-bcc').value.split(',').filter(x => x.trim()).length,
         subject: $('c-subj').value, body_preview: $('c-body').value.slice(0, 300) });
     }
+    fwdMode = false;
   } catch (e) { toast('Send failed: ' + e.message, 'error'); }
   $('m-confirm').disabled = false; $('m-confirm').textContent = 'Send now';
 }
@@ -1019,8 +1080,10 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btn-savedraft').addEventListener('click', async () => {
     if (!sel) { toast('Select an email first', 'warning'); return; }
     await updateRow(sel.id, { status: 'drafted', draft_from: $('c-from').value, draft_to: $('c-to').value,
+      draft_cc: $('c-cc').value.trim() || null, draft_bcc: $('c-bcc').value.trim() || null,
       draft_subject: $('c-subj').value, draft_body: $('c-body').value, draft_source: 'human' });
-    logAction('draft_saved', { subject: $('c-subj').value, body_preview: $('c-body').value.slice(0, 300) });
+    logAction('draft_saved', { subject: $('c-subj').value, cc_addr: $('c-cc').value.trim(),
+      body_preview: $('c-body').value.slice(0, 300) });
     setDraftStatus('');
     toast('Draft saved', 'success');
   });
@@ -1052,6 +1115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     await updateRow(sel.id, { no_autodraft: $('c-noauto').checked });
     toast($('c-noauto').checked ? 'Auto-draft off for this item' : 'Auto-draft on for this item', 'info');
   });
+  $('btn-fwd').addEventListener('click', startForward);
+  $('btn-cctoggle').addEventListener('click', () => setCcVisible($('row-cc').classList.contains('hidden')));
   $('btn-send').addEventListener('click', openSendModal);
   $('m-confirm').addEventListener('click', reallySend);
 
