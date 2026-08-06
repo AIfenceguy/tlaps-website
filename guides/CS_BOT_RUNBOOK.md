@@ -6,20 +6,21 @@ Zendesk → Claude → internal-note drafts for JL Concepts. Built 2026-08-06.
 
 ---
 
-## Do this first (about 5 minutes)
+## Do this first
 
-Everything else is already deployed and waiting on these two SQL files.
+**Nothing — it's already done.** The tables were created and the 8 playbooks seeded
+directly via the Supabase API on 2026-08-06, and unattended mining has been running
+since (see the last section). The two SQL files are kept as the source of record.
 
-1. Open the [SQL editor](https://supabase.com/dashboard/project/poescwjdppbweqfdqcue/sql/new)
-2. Paste and run `sql/10_cs_bot_schema.sql` — creates the five `cs_*` tables
-3. Paste and run `sql/11_cs_playbooks_seed.sql` — seeds 8 handling rules
-4. Confirm:
+Just confirm state:
 
 ```powershell
 Invoke-RestMethod -Uri "https://poescwjdppbweqfdqcue.supabase.co/functions/v1/cs-mine" -Method Post -ContentType "application/json" -Body '{"access_code":"YOUR_CODE","mode":"status"}' | ConvertTo-Json
 ```
 
-Expect `playbooks: 8`, everything else 0.
+Expect `playbooks: 8` and a growing `raw_lessons` count.
+
+## Step 0 — See a draft (start here in the morning)
 
 ---
 
@@ -33,7 +34,7 @@ Expect `playbooks: 8`, everything else 0.
 
 ---
 
-## Step 1 — See a draft (this is the beta test)
+### The beta test
 
 Start with dry run. Nothing is written anywhere.
 
@@ -55,7 +56,7 @@ It lands as a **private internal note** prefixed `🤖 AI DRAFT — review befor
 
 ---
 
-## Step 2 — Build the binder
+## Manual mining (only if you want to drive it yourself)
 
 Each `map` call reads ~20 closed tickets, extracts what broke and what fixed it, and stores the lessons. Run it in a loop — takes a while, costs a few dollars total.
 
