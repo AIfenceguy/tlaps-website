@@ -107,3 +107,38 @@ from cs_sku_knowledge order by ticket_count desc limit 40;
 - **No webhook yet.** Drafts are triggered manually per ticket. Add a Zendesk trigger → `cs-draft` once the drafts are trusted.
 - **Token expires 2026-09-05**, and Zendesk kills API tokens entirely 2027-04-30 → OAuth migration owed.
 - **No outcome logging yet.** `cs_tickets.outcome` exists but nothing writes it. That's the used/edited/discarded measurement that tells us whether this works — worth wiring before expanding scope.
+
+---
+
+## Unattended mining (running since 2026-08-06)
+
+A `pg_cron` job (`cs-mine-auto`, every 2 min) calls `cs-mine` in `auto` mode.
+State is in `cs_mine_state`; it resumes where it left off and stops itself at
+`end_of_stream` or `max_batches` (default 150 ≈ 3,000 worked tickets, roughly $20–25
+of API spend).
+
+The cron authenticates with `cs_mine_state.internal_token`, not your access code —
+so the access code is never written into a cron definition.
+
+**Check progress:**
+```sql
+select batches_run, max_batches, stopped, stop_reason, last_error, updated_at from cs_mine_state;
+select count(*) from cs_raw_lessons;
+select category, count(*) from cs_raw_lessons group by category order by 2 desc;
+```
+
+**Stop it:**
+```sql
+update cs_mine_state set stopped = true, stop_reason = 'manual' where id = 1;
+-- or kill the schedule entirely:
+select cron.unschedule('cs-mine-auto');
+```
+
+**Restart / extend:**
+```sql
+update cs_mine_state set stopped = false, max_batches = 300 where id = 1;
+```
+
+**Known gap:** old tickets have no SKU (they predate the ChannelReply field setup),
+so `reduce` — which groups by SKU — has little to work with until the walk reaches
+recent tickets. Category-level lessons accumulate regardless.
