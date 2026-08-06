@@ -145,8 +145,8 @@ button.xls:hover{background:#175937;border-color:#175937}
  <p class="note" id="fnsum"></p>
  <div class="kpis" id="fnkpi" style="margin-bottom:8px"></div>
  <div class="flt" style="margin-bottom:8px">
-  <div><label>Marketplace</label><select id="fnm">
-    <option value="">Amazon + eBay</option><option>Amazon</option><option>eBay</option></select></div>
+  <div><label>Marketplace / account</label><select id="fnm">
+    <option value="">all accounts</option></select></div>
   <div><label>Verdict</label><select id="fnv"><option value="">all</option></select></div>
   <div class="wide"><label>Search SKU / title / id</label>
     <input type="text" id="fnq" placeholder="e.g. BGHD, tacoma, B07M"></div>
@@ -615,23 +615,33 @@ $("#sub").textContent="Built "+META.built+" · default view = last 24 months · 
 (function(){
  if(!FN.length){$("#fnsum").textContent=
    "No marketplace traffic loaded yet.";return;}
+ // one entry per marketplace+seller account actually present in the data
+ [...new Set(FN.map(r=>r.m))].sort().forEach(m=>{
+   const o=document.createElement("option");o.value=m;o.textContent=m;$("#fnm").appendChild(o);});
  const VERD=["HEALTHY","SEEN, NOT BOUGHT","NOT CLICKED","LOSING BUY BOX","NOT SEEN"];
  VERD.forEach(v=>{if(FN.some(r=>r.v===v)){
    const o=document.createElement("option");o.value=v;o.textContent=v;$("#fnv").appendChild(o);}});
  const COLOUR={"HEALTHY":"pos","SEEN, NOT BOUGHT":"neg","NOT CLICKED":"neg",
                "LOSING BUY BOX":"neg","NOT SEEN":""};
  let fk="view", fd=-1;
+ // greyed "n/a" with the reason on hover - distinguishes "this marketplace does not
+ // measure that" from "we have not loaded it yet"
+ const na=why=>'<span style="color:#c3c8d0" title="'+why+'">n/a</span>';
  const COLS=[
   {k:"m",   h:"Market",    f:r=>r.m},
   {k:"k",   h:"SKU / listing", f:r=>r.k||r.t||r.id},
-  {k:"imp", h:"Impressions", n:1, f:r=>r.imp==null?"—":fmt(r.imp)},
+  // Amazon publishes no organic impression count and eBay has no buy box. Those
+  // blanks are facts about the marketplace, not missing data - say so, or they
+  // read as a broken page.
+  {k:"imp", h:"Impressions", n:1, f:r=>r.imp==null?na("Amazon does not publish impressions"):fmt(r.imp)},
   {k:"view",h:"Views",      n:1, f:r=>fmt(r.view)},
-  {k:"ctr", h:"Click rate", n:1, f:r=>r.ctr==null?"—":r.ctr.toFixed(1)+"%"},
-  {k:"u",   h:"Units",      n:1, f:r=>r.u?fmt(r.u):""},
+  {k:"ctr", h:"Click rate", n:1, f:r=>r.ctr==null?na("needs impressions, which Amazon does not publish"):r.ctr.toFixed(1)+"%"},
+  {k:"u",   h:"Units",      n:1, f:r=>r.u?fmt(r.u):'<span style="color:#c3c8d0">0</span>'},
   {k:"cv",  h:"Conversion", n:1, f:r=>r.cv?r.cv.toFixed(1)+"%":"0%"},
-  {k:"bb",  h:"Buy box",    n:1, f:r=>r.bb==null?"—":
+  {k:"bb",  h:"Buy box",    n:1, f:r=>r.bb==null?na("eBay has no buy box"):
       '<span class="'+(r.bb<50?"neg":"")+'">'+r.bb+"%</span>"},
-  {k:"ad",  h:"Promoted",   f:r=>r.ad?"yes":""},
+  {k:"ad",  h:"Promoted",   f:r=>r.ad==null?na("Amazon ad data not connected yet")
+      :(r.ad?"yes":'<span style="color:#c3c8d0">no</span>')},
   {k:"v",   h:"Verdict",    f:r=>'<span class="'+(COLOUR[r.v]||"")+'">'+r.v+"</span>"},
  ];
  const flt=()=>{const m=$("#fnm").value,v=$("#fnv").value,
@@ -640,7 +650,7 @@ $("#sub").textContent="Built "+META.built+" · default view = last 24 months · 
    (!q||((r.k||"")+(r.t||"")+r.id).toUpperCase().includes(q)));};
  function draw(){
   const rs=flt();
-  const az=rs.filter(r=>r.m==="Amazon"), eb=rs.filter(r=>r.m==="eBay");
+  const az=rs.filter(r=>r.m.startsWith("Amazon")), eb=rs.filter(r=>r.m.startsWith("eBay"));
   const sum=(a,f)=>a.reduce((s,r)=>s+(f(r)||0),0);
   const tiles=[];
   if(az.length)tiles.push(["Amazon sessions",fmt(sum(az,r=>r.view))],
