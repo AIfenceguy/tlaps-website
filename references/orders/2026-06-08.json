@@ -1,0 +1,420 @@
+{
+ "id": "2026-06-08",
+ "po_date": "2026-06-08",
+ "source": "Amazon Vendor Stocking PO",
+ "label": "Stocking PO \u2014 51 SKUs / 4147 units",
+ "fees": {
+  "box_per_unit": 1.0,
+  "ups_pickup": 0
+ },
+ "lines": [
+  {
+   "tlaps_sku": "TLAPS-CUTL-W33J5Q",
+   "dhg_sku": "B6-5FM2-RC8O",
+   "asin": "B0D1W33J5Q",
+   "qty": 250,
+   "pack_note": "(Sell by Case) PM-HWPP6BK ",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "150PP-IMFC12A",
+   "dhg_sku": "150PP-IMFC12A",
+   "asin": "B0BBQ8F51N",
+   "qty": 150,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "IMFC16-150",
+   "dhg_sku": "IMFC16-150",
+   "asin": "B0FFB6SB5B",
+   "qty": 150,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-B9ZF8P",
+   "dhg_sku": "IMFC8-150",
+   "asin": "B0FFB9ZF8P",
+   "qty": 150,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "IMFC8-100",
+   "dhg_sku": "IMFC8-100",
+   "asin": "B0FFMBTCXY",
+   "qty": 150,
+   "pack_note": "100 set",
+   "carton_dims": "16x8x8"
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-27FDSZ",
+   "dhg_sku": "50 PP-IMFC58",
+   "asin": "B0BX27FDSZ",
+   "qty": 100,
+   "pack_note": "50 set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-2FH3XK",
+   "dhg_sku": "PP-IMFC32",
+   "asin": "B0912FH3XK",
+   "qty": 100,
+   "pack_note": "50 set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-CWR3TF",
+   "dhg_sku": "IMFCR28-50",
+   "asin": "B0F6CWR3TF",
+   "qty": 100,
+   "pack_note": "50 set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-SYCTDY",
+   "dhg_sku": "PP-IMFC38",
+   "asin": "B091SYCTDY",
+   "qty": 100,
+   "pack_note": "50set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "PP-IMFC24",
+   "dhg_sku": "PP-IMFC24",
+   "asin": "B091T4788F",
+   "qty": 100,
+   "pack_note": "50set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-CONT-TBZNP7",
+   "dhg_sku": "PP-IMFC9048",
+   "asin": "B091TBZNP7",
+   "qty": 100,
+   "pack_note": "50set  IMFCR48",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "IMFCSQ48-50",
+   "dhg_sku": "IMFCSQ48-50",
+   "asin": "B0F6V65DV9",
+   "qty": 100,
+   "pack_note": "50set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "IMFC42-3C50",
+   "dhg_sku": "IMFC42-3C50",
+   "asin": "B0F6VGGYYN",
+   "qty": 100,
+   "pack_note": "50set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "100-PET-C24-D98-SIPLID",
+   "dhg_sku": "100-PET-C24-D98-SIPLID",
+   "asin": "B0B2BVZHG4",
+   "qty": 100,
+   "pack_note": "100 PET-SIPLID-F98 + 100 PET-C24-D98",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "55-G2RI-9Y7Z",
+   "dhg_sku": "55-G2RI-9Y7Z",
+   "asin": "B092YHJBQM",
+   "qty": 100,
+   "pack_note": "100 HC16 + 100 HCLIDB1220",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-HC12-Sleeve-Stir-100",
+   "dhg_sku": "HC12-Sleeve-Stir-100",
+   "asin": "B09D5X9N72",
+   "qty": 100,
+   "pack_note": "No Stock",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-IMFC16-100",
+   "dhg_sku": "IMFC16-100",
+   "asin": "B0FFM7WFYR",
+   "qty": 100,
+   "pack_note": "100set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-IMFCR37-50",
+   "dhg_sku": "IMFCR37-50",
+   "asin": "B0F5WY6274",
+   "qty": 100,
+   "pack_note": "50set",
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "TLAPS-PLTS-293L6Y",
+   "dhg_sku": "PP6GD",
+   "asin": "B093293L6Y",
+   "qty": 100,
+   "pack_note": null,
+   "carton_dims": "we don't have suitable box"
+  },
+  {
+   "tlaps_sku": "TLAPS-PLTS-2FYWD6",
+   "dhg_sku": "0L-ZCM8-DUN5",
+   "asin": "B0912FYWD6",
+   "qty": 100,
+   "pack_note": "PP6GN",
+   "carton_dims": "we don't have suitable box"
+  },
+  {
+   "tlaps_sku": "PP9GN",
+   "dhg_sku": "PP9GN",
+   "asin": "B09152BFDB",
+   "qty": 100,
+   "pack_note": null,
+   "carton_dims": "10x10x5"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-2WSQRW",
+   "dhg_sku": "PET-C16-D98-100",
+   "asin": "B09B2WSQRW",
+   "qty": 100,
+   "pack_note": "100 pet-c16-d98+ 100 pet-lid-F98 +100 VR-SP7GWW1600",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-2Z66DL",
+   "dhg_sku": "Pet-c12-d98-F-100",
+   "asin": "B09B2Z66DL",
+   "qty": 100,
+   "pack_note": "100 pet-c12-d98+ 100 pet-lid-F98 +100 VR-SP7GWW1600",
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-GYBQ7T",
+   "dhg_sku": "PM-S8WRG243-10Box-3000pcs",
+   "asin": "B0FHGYBQ7T",
+   "qty": 100,
+   "pack_note": "10 boxes",
+   "carton_dims": "20x16x14"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-H2K2Z3",
+   "dhg_sku": "PM-S8WRG243-5Box-1500pcs",
+   "asin": "B0FHH2K2Z3",
+   "qty": 100,
+   "pack_note": "5 boxes",
+   "carton_dims": "18x12x10"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-N15QC3",
+   "dhg_sku": "1200PM-S10WCG43",
+   "asin": "B09VN15QC3",
+   "qty": 100,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "pet-c16-d98-D-100",
+   "dhg_sku": "pet-c16-d98-D-100",
+   "asin": "B09B314BVK",
+   "qty": 100,
+   "pack_note": "100 pet-c16-d98+ 100 pet-lid-D98 +100 VR-SP7GWW1600",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "1200PM-S10WRG43",
+   "dhg_sku": "1200PM-S10WRG43",
+   "asin": "B09VR5HTV7",
+   "qty": 100,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-SCGY9W",
+   "dhg_sku": "2000PM-S7WT45-case",
+   "asin": "B09VSCGY9W",
+   "qty": 100,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-SS8S58",
+   "dhg_sku": "300-S7JWB243",
+   "asin": "B0FFSS8S58",
+   "qty": 100,
+   "pack_note": null,
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-YXW8QR",
+   "dhg_sku": "PM-SPHSM32",
+   "asin": "B097YXW8QR",
+   "qty": 80,
+   "pack_note": 20,
+   "carton_dims": "14x10x6"
+  },
+  {
+   "tlaps_sku": "O-E-E-G-Tea",
+   "dhg_sku": "O-E-E-G-Tea",
+   "asin": "B0CTL2SHHN",
+   "qty": 80,
+   "pack_note": "DISCONTINUED",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-LZ244L",
+   "dhg_sku": "75 ECP-PCO883-BK",
+   "asin": "B0B6LZ244L",
+   "qty": 75,
+   "pack_note": 75,
+   "carton_dims": "16x8x12"
+  },
+  {
+   "tlaps_sku": "50-PET-C20+SIPLID-F98",
+   "dhg_sku": "50-PET-C20+SIPLID-F98",
+   "asin": "B09Z7CSPRJ",
+   "qty": 50,
+   "pack_note": null,
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-CUP-7DSZX8",
+   "dhg_sku": "50-PET-C24+SIPLID-F98",
+   "asin": "B09Z7DSZX8",
+   "qty": 50,
+   "pack_note": null,
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-CUP-TCMRJ5",
+   "dhg_sku": "100-C-PET-C24+FLAT-LIDS",
+   "asin": "B0B4TCMRJ5",
+   "qty": 50,
+   "pack_note": "100 pet-c24-d98+ 100 pet-lid-D98 +100 VR-SP7GWW1600",
+   "carton_dims": "18x10x10"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-FT5TGL",
+   "dhg_sku": "PM-GP52",
+   "asin": "B0DWFT5TGL",
+   "qty": 50,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-2ZC5KC",
+   "dhg_sku": "Pet-c12-d98-F-50",
+   "asin": "B09B2ZC5KC",
+   "qty": 50,
+   "pack_note": "50 pet-c12-d98+ 50 pet-lid-F98 +50 VR-SP7GWW1600",
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-2ZM291",
+   "dhg_sku": "pet-c16-d98-D-50",
+   "asin": "B09B2ZM291",
+   "qty": 50,
+   "pack_note": "50 pet-c16-d98+ 50 pet-lid-D98 +50 VR-SP7GWW1600",
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-3164KB",
+   "dhg_sku": "pet-c12-d98-D-50",
+   "asin": "B09B3164KB",
+   "qty": 50,
+   "pack_note": "50 pet-c12-d98+ 50 pet-lid-D98 +50 VR-SP7GWW1600",
+   "carton_dims": "18x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-BOWL-PM-PBL20",
+   "dhg_sku": "PM-PBL20",
+   "asin": "B0BTKH96HP",
+   "qty": 42,
+   "pack_note": null,
+   "carton_dims": "10x8x4"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-YX927C",
+   "dhg_sku": "PM-SPHSD45",
+   "asin": "B097YX927C",
+   "qty": 40,
+   "pack_note": 20,
+   "carton_dims": "14x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-25-sc12kr-combo",
+   "dhg_sku": "25-sc12kr-combo",
+   "asin": "B0GVW8D125",
+   "qty": 25,
+   "pack_note": "25set",
+   "carton_dims": "14x10x6"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-25-sc24kr-combo",
+   "dhg_sku": "25-sc24kr-combo",
+   "asin": "B0GVW6T3Y7",
+   "qty": 25,
+   "pack_note": "25set",
+   "carton_dims": "16x8x8"
+  },
+  {
+   "tlaps_sku": "TLAPS-LID-25-sc32kr-combo",
+   "dhg_sku": "25-sc32kr-combo",
+   "asin": "B0GVW6Z7FR",
+   "qty": 25,
+   "pack_note": "25set",
+   "carton_dims": "16x8x8"
+  },
+  {
+   "tlaps_sku": "TLAPS-FOIL-20-FDLOPS4LB",
+   "dhg_sku": "20-FDLOPS4LB",
+   "asin": "B0GVGQ93ML",
+   "qty": 20,
+   "pack_note": "20 F4LBOP",
+   "carton_dims": "13x11x3"
+  },
+  {
+   "tlaps_sku": "TLAPS-PLTS-2CK85T",
+   "dhg_sku": "B108W-P",
+   "asin": "B0CW2CK85T",
+   "qty": 16,
+   "pack_note": null,
+   "carton_dims": "10x8x8"
+  },
+  {
+   "tlaps_sku": "TLAPS-STRW-6RJ6P8",
+   "dhg_sku": "250-S10GWPHA8250",
+   "asin": "B0DB6RJ6P8",
+   "qty": 10,
+   "pack_note": null,
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-OTHER-D8DGNH",
+   "dhg_sku": "HEB063026",
+   "asin": "B07RD8DGNH",
+   "qty": 6,
+   "pack_note": "DISCONTINUED",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "PLAGCL40x48",
+   "dhg_sku": "PLAGCL40x48",
+   "asin": "B0F43XPJ1P",
+   "qty": 2,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  },
+  {
+   "tlaps_sku": "TLAPS-BAG-PLAGTS12622-vwg",
+   "dhg_sku": "PLAGTS12622-vwg",
+   "asin": "B0GZ9QN92X",
+   "qty": 1,
+   "pack_note": "(Sell by Case)",
+   "carton_dims": null
+  }
+ ]
+}
